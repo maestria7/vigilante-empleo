@@ -50,7 +50,7 @@ def rss(url):
     for it in root.iter("item"):
         link = (it.findtext("link") or "").strip()
         titulo = html.unescape(it.findtext("title") or "").strip()
-        out.append({"id": link or titulo, "titulo": titulo, "url": link, "origen": "alerta/RSS"})
+        out.append({"id": link or titulo, "titulo": titulo, "url": link, "origen": "alerta/RSS", "sin_filtro": True})
     for en in root.iter("{http://www.w3.org/2005/Atom}entry"):  # Google Alerts usa Atom
         a = en.find("{http://www.w3.org/2005/Atom}link")
         link = a.get("href") if a is not None else ""
@@ -58,7 +58,7 @@ def rss(url):
         q = urllib.parse.parse_qs(urllib.parse.urlparse(link).query)
         link = q.get("url", [link])[0]
         titulo = html.unescape(re.sub(r"<[^>]+>", "", en.findtext("{http://www.w3.org/2005/Atom}title") or "")).strip()
-        out.append({"id": link, "titulo": titulo, "url": link, "origen": "alerta Google"})
+        out.append({"id": link, "titulo": titulo, "url": link, "origen": "alerta Google", "sin_filtro": True})
     return out
 
 
