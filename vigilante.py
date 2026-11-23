@@ -40,7 +40,7 @@ def construir_fuentes(grupo):
         fs.append(("edutalent", F.edutalent, {}))
         fs.append(("cdlmurcia", F.cdlmurcia, {"ccaa": "MUR", "prov": "Murcia"}))
         for u in CONFIG.get("feeds_rss", []):
-            fs.append((u, lambda u=u: F.rss(u), {"solo_privado": True}))
+            fs.append((u, lambda u=u: F.rss(u), {"solo_privado": True, "grupo": True, "agregador": True}))
         for u in CONFIG.get("paginas_a_vigilar", []):
             fs.append((u, lambda u=u: F.pagina_cambia(u), {"solo_privado": True}))
     if grupo in ("pesadas", "todas"):
@@ -54,7 +54,7 @@ def construir_fuentes(grupo):
 
 
 def enriquecer(o, meta):
-    o.update({k: v for k, v in meta.items() if k in ("ccaa", "prov", "agregador", "solo_privado")})
+    o.update({k: v for k, v in meta.items() if k in ("ccaa", "prov", "agregador", "solo_privado", "grupo")})
     # si la fuente no dice dónde es, lo deduzco del texto
     cod, prov = comunidad_y_provincia(o["titulo"])
     if prov:  # el texto da una provincia concreta: manda sobre la de la búsqueda
@@ -148,7 +148,7 @@ def main():
     v_pub = cargar(VISTOS_PUB)
     primera_pub = v_pub is None
     v_pub = v_pub or set()
-    candidatas = [o for o in ofertas if not o.get("solo_privado")
+    candidatas = [o for o in ofertas if (not o.get("solo_privado") or o.get("grupo"))
                   and not re.search(EXCLUIR, _n(o["titulo"]))
                   and (not o.get("agregador") or es_docente(o["titulo"]))]
     if volcado:
