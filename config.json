@@ -1,0 +1,12 @@
+{
+  "palabras_clave": ["primaria", "educación física", "educacion fisica", "maestro", "maestra", "maestro/a", "e. física", "ed. física"],
+  "palabras_excluir": [],
+  "colegios_es_provincias": [
+    "almeria", "cadiz", "cordoba", "granada", "huelva", "jaen", "malaga", "sevilla",
+    "murcia",
+    "albacete", "ciudad-real", "cuenca", "guadalajara", "toledo",
+    "madrid"
+  ],
+  "feeds_rss": [],
+  "paginas_a_vigilar": []
+}

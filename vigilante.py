@@ -1,0 +1,104 @@
+#!/usr/bin/env python3
+"""Vigila ofertas de empleo docente y avisa por Telegram de las nuevas."""
+import hashlib, html, json, os, re, sys, urllib.parse, urllib.request
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+AQUI = Path(__file__).parent
+CONFIG = json.loads((AQUI / "config.json").read_text(encoding="utf8"))
+VISTOS_F = AQUI / "vistos.json"
+UA = {"User-Agent": "Mozilla/5.0 (vigilante-empleo)"}
+
+
+def get(url):
+    req = urllib.request.Request(url, headers=UA)
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return r.read().decode("utf8", errors="ignore")
+
+
+def colegios_es(provincia):
+    """Ofertas de la página de una provincia de colegios.es."""
+    base = f"https://colegios.es/empleoprofesores/{provincia}/"
+    h = get(base)
+    out, vistos = [], set()
+    for href, txt in re.findall(r'<a[^>]+href="([^"]+)"[^>]*>(.*?)</a>', h, re.S):
+        t = html.unescape(re.sub(r"<[^>]+>", "", txt)).strip()
+        # las ofertas terminan en una fecha ddmmaaaa
+        if re.search(r"-\d{8}/?$", href) and t and href not in vistos:
+            vistos.add(href)
+            out.append({"id": href, "titulo": t, "url": href, "origen": f"colegios.es · {provincia}"})
+    return out
+
+
+def rss(url):
+    root = ET.fromstring(get(url))
+    out = []
+    for it in root.iter("item"):
+        link = (it.findtext("link") or "").strip()
+        titulo = html.unescape(it.findtext("title") or "").strip()
+        out.append({"id": link or titulo, "titulo": titulo, "url": link, "origen": "alerta/RSS"})
+    for en in root.iter("{http://www.w3.org/2005/Atom}entry"):  # Google Alerts usa Atom
+        a = en.find("{http://www.w3.org/2005/Atom}link")
+        link = a.get("href") if a is not None else ""
+        # Google Alerts envuelve el enlace real en google.com/url?url=...
+        q = urllib.parse.parse_qs(urllib.parse.urlparse(link).query)
+        link = q.get("url", [link])[0]
+        titulo = html.unescape(re.sub(r"<[^>]+>", "", en.findtext("{http://www.w3.org/2005/Atom}title") or "")).strip()
+        out.append({"id": link, "titulo": titulo, "url": link, "origen": "alerta Google"})
+    return out
+
+
+def pagina_cambia(url):
+    h = re.sub(r"\s+", " ", re.sub(r"<(script|style).*?</\1>", "", get(url), flags=re.S))
+    huella = hashlib.sha1(h.encode()).hexdigest()[:12]
+    return [{"id": f"{url}#{huella}", "titulo": "La página ha cambiado", "url": url, "origen": "página vigilada", "sin_filtro": True}]
+
+
+def coincide(o):
+    if o.get("sin_filtro"):
+        return True
+    t = o["titulo"].lower()
+    if any(x.lower() in t for x in CONFIG["palabras_excluir"]):
+        return False
+    return any(k.lower() in t for k in CONFIG["palabras_clave"])
+
+
+def telegram(texto):
+    tok, chat = os.environ.get("TELEGRAM_TOKEN"), os.environ.get("TELEGRAM_CHAT_ID")
+    if not tok or not chat:
+        print("[sin Telegram configurado]\n" + texto)
+        return
+    data = urllib.parse.urlencode({"chat_id": chat, "text": texto, "disable_web_page_preview": "true"}).encode()
+    urllib.request.urlopen(urllib.request.Request(f"https://api.telegram.org/bot{tok}/sendMessage", data=data), timeout=30)
+
+
+def main():
+    primera = not VISTOS_F.exists()
+    vistos = set(json.loads(VISTOS_F.read_text())) if not primera else set()
+    ofertas, fallos = [], []
+    fuentes = [(f"colegios.es/{p}", lambda p=p: colegios_es(p)) for p in CONFIG["colegios_es_provincias"]]
+    fuentes += [(u, lambda u=u: rss(u)) for u in CONFIG["feeds_rss"]]
+    fuentes += [(u, lambda u=u: pagina_cambia(u)) for u in CONFIG["paginas_a_vigilar"]]
+    for nombre, fn in fuentes:
+        try:
+            ofertas += fn()
+        except Exception as e:
+            fallos.append(f"{nombre}: {e}")
+    nuevas = [o for o in ofertas if o["id"] not in vistos]
+    interesantes = [o for o in nuevas if coincide(o)]
+    print(f"{len(ofertas)} leídas, {len(nuevas)} nuevas, {len(interesantes)} coinciden, {len(fallos)} fallos")
+    for f in fallos:
+        print("FALLO", f, file=sys.stderr)
+    if primera:
+        print("Primera ejecución: se guardan las existentes sin avisar.")
+    else:
+        for o in interesantes:
+            telegram(f"🔔 {o['titulo']}\n{o['origen']}\n{o['url']}")
+    vistos |= {o["id"] for o in ofertas}
+    VISTOS_F.write_text(json.dumps(sorted(vistos), indent=0))
+    if len(fallos) == len(fuentes):
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
