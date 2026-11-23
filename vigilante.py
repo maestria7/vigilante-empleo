@@ -30,6 +30,22 @@ def colegios_es(provincia):
     return out
 
 
+def colejobs(provincia):
+    """Ofertas de colegios concertados/privados en colejobs.es."""
+    base = f"https://www.colejobs.es/ofertas-de-empleo/{provincia}/"
+    h = get(base)
+    out, vistos = [], set()
+    for href, txt in re.findall(r'<a[^>]+href="([^"#]+)"[^>]*>(.*?)</a>', h, re.S):
+        if not re.search(r"ofertas-de-empleo/[^/]+-n[0-9A-Za-z]+/?$", href):
+            continue
+        url = urllib.parse.urljoin(base, href)
+        t = re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", txt))).strip()
+        if t and url not in vistos:
+            vistos.add(url)
+            out.append({"id": url, "titulo": t[:150], "url": url, "origen": f"Colejobs · {provincia}"})
+    return out
+
+
 def talent(consulta, lugar):
     """Resultados de búsqueda en es.talent.com (agregador de ofertas)."""
     url = "https://es.talent.com/jobs?" + urllib.parse.urlencode({"k": consulta, "l": lugar})
@@ -91,6 +107,7 @@ def main():
     vistos = set(json.loads(VISTOS_F.read_text())) if not primera else set()
     ofertas, fallos = [], []
     fuentes = [(f"colegios.es/{p}", lambda p=p: colegios_es(p)) for p in CONFIG["colegios_es_provincias"]]
+    fuentes += [(f"colejobs/{p}", lambda p=p: colejobs(p)) for p in CONFIG.get("colejobs_provincias", [])]
     fuentes += [(f"talent/{q}/{l}", lambda q=q, l=l: talent(q, l)) for q in CONFIG.get("talent_busquedas", []) for l in CONFIG.get("talent_lugares", [])]
     fuentes += [(u, lambda u=u: rss(u)) for u in CONFIG["feeds_rss"]]
     fuentes += [(u, lambda u=u: pagina_cambia(u)) for u in CONFIG["paginas_a_vigilar"]]

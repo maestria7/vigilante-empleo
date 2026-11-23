@@ -40,7 +40,10 @@
     "https://www.google.com/alerts/feeds/12192901138431088622/14129714796027424404",
     "https://www.google.com/alerts/feeds/12192901138431088622/8113755006988748328"
   ],
-  "paginas_a_vigilar": [],
+  "paginas_a_vigilar": [
+    "https://www.afoe.org/bolsas-trabajo/oferta-empleo-docente-centros-privados-2025-2/",
+    "https://www.afoe.org/bolsas-trabajo/empleo-especialidades-profesores-maestros-centros-privados/"
+  ],
   "talent_busquedas": [
     "maestro primaria",
     "educación física primaria"
@@ -61,5 +64,22 @@
     "Guadalajara",
     "Toledo",
     "Madrid"
+  ],
+  "colejobs_provincias": [
+    "almeria",
+    "cadiz",
+    "cordoba",
+    "granada",
+    "huelva",
+    "jaen",
+    "malaga",
+    "sevilla",
+    "murcia",
+    "albacete",
+    "ciudad-real",
+    "cuenca",
+    "guadalajara",
+    "toledo",
+    "madrid"
   ]
 }
