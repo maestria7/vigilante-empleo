@@ -8,7 +8,7 @@ import json, subprocess, sys
 from pathlib import Path
 
 AQUI = Path(__file__).parent
-FICHEROS = ["vistos.json", "vistos_publico.json", "limites.json"]
+FICHEROS = ["vistos.json", "vistos_publico.json", "limites.json", "publicadas.json"]
 
 
 def sh(*a, check=True):
@@ -18,6 +18,13 @@ def sh(*a, check=True):
 def fusionar(a, b):
     if isinstance(a, list) or isinstance(b, list):
         return sorted(set(a or []) | set(b or []))
+    if any(isinstance(v, dict) for v in list(a.values()) + list(b.values())):  # publicadas.json: id -> registro
+        out = dict(b)
+        for k, v in a.items():
+            w = b.get(k)
+            # si hay dos versiones, me quedo con la más avanzada (cerrada/vieja y con más mensajes)
+            out[k] = v if not w or (bool(v.get("estado")), len(v.get("m", []))) >= (bool(w.get("estado")), len(w.get("m", []))) else w
+        return out
     return {k: max(a.get(k, 0), b.get(k, 0)) for k in set(a) | set(b)}
 
 
@@ -33,7 +40,7 @@ for intento in range(5):
             continue
         p = AQUI / f
         remoto = json.loads(p.read_text()) if p.exists() else type(mio)()
-        p.write_text(json.dumps(fusionar(mio, remoto)) if isinstance(mio, list) else json.dumps(fusionar(mio, remoto)))
+        p.write_text(json.dumps(fusionar(mio, remoto), ensure_ascii=False))
     sh("git", "add", *[f for f in FICHEROS if (AQUI / f).exists()])
     if subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=AQUI).returncode == 0:
         print("estado sin cambios")

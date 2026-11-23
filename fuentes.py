@@ -19,9 +19,11 @@ def colegios_es(provincia):
     for href, txt in re.findall(r'<a[^>]+href="([^"]+)"[^>]*>(.*?)</a>', h, re.S):
         t = html.unescape(re.sub(r"<[^>]+>", "", txt)).strip()
         # las ofertas terminan en una fecha ddmmaaaa
-        if re.search(r"-\d{8}/?$", href) and t and href not in vistos:
+        if re.search(r"-\d{8}/?$", href) and t and not t.lower().startswith("ver ") and href not in vistos:
             vistos.add(href)
-            out.append({"id": href, "titulo": t, "url": href, "origen": f"colegios.es · {provincia}"})
+            d = re.search(r"-(\d{2})(\d{2})(\d{4})/?$", href)
+            pub = f"{d.group(3)}-{d.group(2)}-{d.group(1)}" if d else None
+            out.append({"id": href, "titulo": t, "url": href, "origen": f"colegios.es · {provincia}", "pub": pub})
     return out
 
 
@@ -106,8 +108,10 @@ def escolapios_emaus():
         if len(celdas) < 6:
             continue
         fecha, desc, _vac, _cand, lugar, prov = celdas[:6]
+        d = re.match(r"(\d{2})/(\d{2})/(\d{4})", fecha)
         out.append({"id": f"{base}#oferta-{oid}", "titulo": f"{desc} — {lugar} ({prov})"[:150],
-                    "url": f"{base}#oferta-{oid}", "origen": "Escolapios Emaús"})
+                    "url": f"{base}#oferta-{oid}", "origen": "Escolapios Emaús",
+                    "pub": f"{d.group(3)}-{d.group(2)}-{d.group(1)}" if d else None})
     return out
 
 

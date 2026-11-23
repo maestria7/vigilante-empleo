@@ -6,7 +6,7 @@
 
 Uso: python3 vigilante.py [ligeras|pesadas|todas] [--volcado N]
 """
-import json, os, re, sys, time, urllib.error, urllib.parse, urllib.request
+import datetime, json, os, re, sys, time, urllib.error, urllib.parse, urllib.request
 from pathlib import Path
 
 import fuentes as F
@@ -19,6 +19,7 @@ VISTOS_PRIV = AQUI / "vistos.json"
 VISTOS_PUB = AQUI / "vistos_publico.json"
 TEMAS_F = AQUI / "topics.json"
 LIMITES_F = AQUI / "limites.json"
+LOG_F = AQUI / "publicadas.json"
 POR_CODIGO = {p[1]: [] for p in PROVINCIAS}
 PROV_POR_SLUG = {p[2]: p for p in PROVINCIAS}
 
@@ -39,8 +40,8 @@ def construir_fuentes(grupo):
         if CONFIG.get("colejobs"):  # bloquea los servidores de GitHub (403): desactivado
             fs.append(("colejobs", F.colejobs_nacional, {}))
         fs.append(("edutalent", F.edutalent, {}))
-        fs.append(("maristas-iberica", F.maristas_iberica, {}))
-        fs.append(("escolapios-emaus", F.escolapios_emaus, {}))
+        fs.append(("maristas-iberica", F.maristas_iberica, {"completa": "maristas"}))
+        fs.append(("escolapios-emaus", F.escolapios_emaus, {"completa": "escolapios"}))
         fs.append(("cdlmurcia", F.cdlmurcia, {"ccaa": "MUR", "prov": "Murcia"}))
         for u in CONFIG.get("feeds_rss", []):
             fs.append((u, lambda u=u: F.rss(u), {"solo_privado": True, "grupo": True, "agregador": True}))
@@ -57,7 +58,7 @@ def construir_fuentes(grupo):
 
 
 def enriquecer(o, meta):
-    o.update({k: v for k, v in meta.items() if k in ("ccaa", "prov", "agregador", "solo_privado", "grupo")})
+    o.update({k: v for k, v in meta.items() if k in ("ccaa", "prov", "agregador", "solo_privado", "grupo", "completa")})
     # si la fuente no dice dónde es, lo deduzco del texto
     cod, prov = comunidad_y_provincia(o["titulo"])
     if prov:  # el texto da una provincia concreta: manda sobre la de la búsqueda
@@ -77,8 +78,8 @@ def telegram(chat, texto, hilo=None):
         datos["message_thread_id"] = str(hilo)
     for intento in range(4):
         try:
-            urllib.request.urlopen(urllib.request.Request(f"https://api.telegram.org/bot{tok}/sendMessage", data=urllib.parse.urlencode(datos).encode()), timeout=30)
-            return True
+            r = urllib.request.urlopen(urllib.request.Request(f"https://api.telegram.org/bot{tok}/sendMessage", data=urllib.parse.urlencode(datos).encode()), timeout=30)
+            return json.load(r)["result"]["message_id"]
         except urllib.error.HTTPError as e:
             cuerpo = e.read().decode("utf8", "ignore")
             if e.code == 429:
@@ -90,12 +91,79 @@ def telegram(chat, texto, hilo=None):
     return False
 
 
+def editar(chat, mid, texto):
+    tok = os.environ.get("TELEGRAM_TOKEN")
+    if not tok or not chat:
+        return False
+    datos = {"chat_id": chat, "message_id": str(mid), "text": texto, "disable_web_page_preview": "true"}
+    try:
+        urllib.request.urlopen(urllib.request.Request(f"https://api.telegram.org/bot{tok}/editMessageText", data=urllib.parse.urlencode(datos).encode()), timeout=30)
+        return True
+    except urllib.error.HTTPError as e:
+        print("Telegram edit error", e.code, e.read().decode("utf8", "ignore")[:150], file=sys.stderr)
+        return False
+
+
+def fecha_es(iso):
+    try:
+        return datetime.date.fromisoformat(iso).strftime("%d/%m/%Y")
+    except Exception:
+        return None
+
+
+def es_vieja(o, dias=None):
+    """Oferta cuya fecha de publicación conocida es anterior al límite (por defecto 30 días)."""
+    dias = dias or CONFIG.get("max_dias_publicar", 30)
+    try:
+        return (datetime.date.today() - datetime.date.fromisoformat(o["pub"])).days > dias
+    except Exception:
+        return False
+
+
+def cargar_log():
+    try:
+        return json.loads(LOG_F.read_text())
+    except Exception:
+        return {}
+
+
+def guardar_log(log):
+    corte = time.time() - 60 * 86400
+    LOG_F.write_text(json.dumps({k: v for k, v in log.items() if v["ts"] > corte}, ensure_ascii=False))
+
+
+def revisar_publicadas(log, grupo_id, ids_completas):
+    """Marca en el grupo las ofertas cerradas (desaparecen de una bolsa que leo completa) o muy antiguas."""
+    ahora = time.time()
+    dias_vieja = CONFIG.get("dias_posible_cerrada", 45)
+    for oid, r in log.items():
+        if r.get("estado"):
+            continue
+        marca = None
+        if r.get("f") in ids_completas:  # la bolsa se leyó bien en esta ejecución
+            if oid in ids_completas[r["f"]]:
+                r["aus"] = 0
+            else:
+                r["aus"] = r.get("aus", 0) + 1
+                if r["aus"] >= 3:  # ausente 3 ejecuciones seguidas: cerrada
+                    marca, r["estado"] = "🔒 CERRADA · ya no aparece en la bolsa\n\n", "cerrada"
+        if not marca and ahora - r["ts"] > dias_vieja * 86400:
+            marca, r["estado"] = f"⏳ Publicada hace más de {dias_vieja} días: puede estar ya cubierta\n\n", "vieja"
+        if marca:
+            for hilo, mid in r["m"]:
+                editar(grupo_id, mid, marca + r["x"])
+                time.sleep(1.2)
+
+
 def mensaje_publico(o, tema_lista):
     lugar = COMUNIDADES.get(o.get("ccaa"), "Sin zona")
     if o.get("prov"):
         lugar += f" · {o['prov']}"
     etiquetas = " ".join(hashtags(o.get("ccaa"), o.get("prov")) + [tag_tema(t) for t in tema_lista])
     titulo = o["titulo"] if len(o["titulo"]) <= 110 else o["titulo"][:107].rsplit(" ", 1)[0] + "…"
+    f = fecha_es(o.get("pub")) if o.get("pub") else None
+    if f:
+        lugar += f" · 📅 {f}"
     return f"🏫 {titulo}\n📍 {lugar}\n🔗 {o['url']}\n{etiquetas}"
 
 
@@ -129,10 +197,13 @@ def main():
     volcado = int(args[args.index("--volcado") + 1]) if "--volcado" in args else 0
 
     fuentes = construir_fuentes(grupo)
-    ofertas, fallos = [], []
+    ofertas, fallos, ids_completas = [], [], {}
     for nombre, fn, meta in fuentes:
         try:
-            ofertas += [enriquecer(o, meta) for o in fn()]
+            res = [enriquecer(o, meta) for o in fn()]
+            ofertas += res
+            if meta.get("completa"):
+                ids_completas[meta["completa"]] = {o["id"] for o in res}
         except Exception as e:
             fallos.append(f"{nombre}: {e}")
         time.sleep(0.3)
@@ -173,7 +244,8 @@ def main():
     v_pub = v_pub or set()
     candidatas = [o for o in ofertas if (not o.get("solo_privado") or o.get("grupo"))
                   and not re.search(EXCLUIR, _n(o["titulo"]))
-                  and (not o.get("agregador") or es_docente(o["titulo"]))]
+                  and (not o.get("agregador") or es_docente(o["titulo"]))
+                  and not es_vieja(o)]
     if volcado:
         a_publicar = limitar_semanal(candidatas, "grupo")[:volcado]
     elif primera_pub:
@@ -181,14 +253,24 @@ def main():
     else:
         a_publicar = limitar_semanal([o for o in candidatas if o["id"] not in v_pub], "grupo")
     enviadas = 0
+    log = cargar_log()
     if grupo_id and hilos:
         for o in a_publicar:
             ts = temas(o["titulo"])
             texto = mensaje_publico(o, ts)
+            msgs = []
             for t in ts:
-                if telegram(grupo_id, texto, hilos.get(t) or hilos.get("Otros")):
+                hilo = hilos.get(t) or hilos.get("Otros")
+                mid = telegram(grupo_id, texto, hilo)
+                if mid:
                     enviadas += 1
+                    msgs.append([hilo, mid])
                 time.sleep(3.2)
+            if msgs:
+                log[o["id"]] = {"t": o["titulo"], "u": o["url"], "c": o.get("ccaa"), "tm": ts, "ts": int(time.time()),
+                                "f": o.get("completa"), "aus": 0, "x": texto, "m": msgs, "estado": ""}
+        revisar_publicadas(log, grupo_id, ids_completas)
+        guardar_log(log)
     elif a_publicar:
         print(f"[grupo sin configurar: {len(a_publicar)} ofertas no publicadas]")
     v_pub |= {o["id"] for o in ofertas}
