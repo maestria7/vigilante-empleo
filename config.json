@@ -1,12 +1,58 @@
 {
-  "palabras_clave": ["primaria", "educación física", "educacion fisica", "maestro", "maestra", "maestro/a", "e. física", "ed. física"],
-  "palabras_excluir": [],
+  "palabras_clave": [
+    "primaria",
+    "educación física",
+    "educacion fisica",
+    "maestro",
+    "maestra",
+    "maestro/a",
+    "e. física",
+    "ed. física"
+  ],
+  "palabras_excluir": [
+    "maestro/a de taller",
+    "particular",
+    "clases particulares",
+    "monitor"
+  ],
   "colegios_es_provincias": [
-    "almeria", "cadiz", "cordoba", "granada", "huelva", "jaen", "malaga", "sevilla",
+    "almeria",
+    "cadiz",
+    "cordoba",
+    "granada",
+    "huelva",
+    "jaen",
+    "malaga",
+    "sevilla",
     "murcia",
-    "albacete", "ciudad-real", "cuenca", "guadalajara", "toledo",
+    "albacete",
+    "ciudad-real",
+    "cuenca",
+    "guadalajara",
+    "toledo",
     "madrid"
   ],
   "feeds_rss": [],
-  "paginas_a_vigilar": []
+  "paginas_a_vigilar": [],
+  "talent_busquedas": [
+    "maestro primaria",
+    "educación física primaria"
+  ],
+  "talent_lugares": [
+    "Almería",
+    "Cádiz",
+    "Córdoba",
+    "Granada",
+    "Huelva",
+    "Jaén",
+    "Málaga",
+    "Sevilla",
+    "Murcia",
+    "Albacete",
+    "Ciudad Real",
+    "Cuenca",
+    "Guadalajara",
+    "Toledo",
+    "Madrid"
+  ]
 }

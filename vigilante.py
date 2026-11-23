@@ -30,6 +30,20 @@ def colegios_es(provincia):
     return out
 
 
+def talent(consulta, lugar):
+    """Resultados de búsqueda en es.talent.com (agregador de ofertas)."""
+    url = "https://es.talent.com/jobs?" + urllib.parse.urlencode({"k": consulta, "l": lugar})
+    h = get(url)
+    out = []
+    for m in re.finditer(r'data-new-id="(\d+)".*?<h2[^>]*>(.*?)</h2>(?:.*?JobCard_company[^>]*>(.*?)</span>)?', h, re.S):
+        t = re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", m.group(2)))).strip()
+        emp = re.sub(r"<[^>]+>", "", m.group(3) or "").strip()
+        link = "https://es.talent.com/view?id=" + m.group(1)
+        if t:
+            out.append({"id": link, "titulo": t + (f" — {emp}" if emp else ""), "url": link, "origen": f"Talent.com · {lugar}"})
+    return out
+
+
 def rss(url):
     root = ET.fromstring(get(url))
     out = []
@@ -77,6 +91,7 @@ def main():
     vistos = set(json.loads(VISTOS_F.read_text())) if not primera else set()
     ofertas, fallos = [], []
     fuentes = [(f"colegios.es/{p}", lambda p=p: colegios_es(p)) for p in CONFIG["colegios_es_provincias"]]
+    fuentes += [(f"talent/{q}/{l}", lambda q=q, l=l: talent(q, l)) for q in CONFIG.get("talent_busquedas", []) for l in CONFIG.get("talent_lugares", [])]
     fuentes += [(u, lambda u=u: rss(u)) for u in CONFIG["feeds_rss"]]
     fuentes += [(u, lambda u=u: pagina_cambia(u)) for u in CONFIG["paginas_a_vigilar"]]
     for nombre, fn in fuentes:
