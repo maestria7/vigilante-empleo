@@ -1,0 +1,182 @@
+{
+ "etapas": [
+  {
+   "id": "inf",
+   "nombre": "Infantil",
+   "areas": [
+    {
+     "id": "general",
+     "nombre": "Educación Infantil"
+    }
+   ]
+  },
+  {
+   "id": "pri",
+   "nombre": "Primaria",
+   "areas": [
+    {
+     "id": "general",
+     "nombre": "Maestro/a de Primaria (tutoría)"
+    },
+    {
+     "id": "ef",
+     "nombre": "Educación Física"
+    },
+    {
+     "id": "ing",
+     "nombre": "Inglés"
+    },
+    {
+     "id": "fra",
+     "nombre": "Francés / Alemán"
+    },
+    {
+     "id": "mus",
+     "nombre": "Música"
+    },
+    {
+     "id": "rel",
+     "nombre": "Religión"
+    }
+   ]
+  },
+  {
+   "id": "sec",
+   "nombre": "Secundaria y Bachillerato",
+   "areas": [
+    {
+     "id": "general",
+     "nombre": "Secundaria (sin asignatura concreta)"
+    },
+    {
+     "id": "lengua",
+     "nombre": "Lengua y Literatura"
+    },
+    {
+     "id": "mat",
+     "nombre": "Matemáticas"
+    },
+    {
+     "id": "geohist",
+     "nombre": "Geografía e Historia"
+    },
+    {
+     "id": "biogeo",
+     "nombre": "Biología y Geología"
+    },
+    {
+     "id": "fq",
+     "nombre": "Física y Química"
+    },
+    {
+     "id": "tec",
+     "nombre": "Tecnología"
+    },
+    {
+     "id": "inf",
+     "nombre": "Informática"
+    },
+    {
+     "id": "ing",
+     "nombre": "Inglés"
+    },
+    {
+     "id": "fra",
+     "nombre": "Francés / Alemán"
+    },
+    {
+     "id": "ef",
+     "nombre": "Educación Física"
+    },
+    {
+     "id": "mus",
+     "nombre": "Música"
+    },
+    {
+     "id": "plas",
+     "nombre": "Plástica y Dibujo"
+    },
+    {
+     "id": "fil",
+     "nombre": "Filosofía y Valores"
+    },
+    {
+     "id": "eco",
+     "nombre": "Economía y Empresa"
+    },
+    {
+     "id": "lat",
+     "nombre": "Latín y Cultura Clásica"
+    },
+    {
+     "id": "rel",
+     "nombre": "Religión"
+    }
+   ]
+  },
+  {
+   "id": "fp",
+   "nombre": "Formación Profesional",
+   "areas": [
+    {
+     "id": "general",
+     "nombre": "FP (sin familia concreta)"
+    },
+    {
+     "id": "sanidad",
+     "nombre": "Sanidad"
+    },
+    {
+     "id": "inf",
+     "nombre": "Informática"
+    },
+    {
+     "id": "admin",
+     "nombre": "Administración y Gestión"
+    },
+    {
+     "id": "elec",
+     "nombre": "Electricidad, Mecánica y Mantenimiento"
+    },
+    {
+     "id": "serv",
+     "nombre": "Servicios socioculturales y Educación Infantil"
+    },
+    {
+     "id": "hosteleria",
+     "nombre": "Hostelería y Turismo"
+    },
+    {
+     "id": "imagen",
+     "nombre": "Imagen personal"
+    },
+    {
+     "id": "com",
+     "nombre": "Comercio y Logística"
+    }
+   ]
+  },
+  {
+   "id": "esp",
+   "nombre": "Apoyo y orientación",
+   "areas": [
+    {
+     "id": "pt",
+     "nombre": "Pedagogía Terapéutica (PT)"
+    },
+    {
+     "id": "al",
+     "nombre": "Audición y Lenguaje (AL)"
+    },
+    {
+     "id": "ee",
+     "nombre": "Educación Especial"
+    },
+    {
+     "id": "ori",
+     "nombre": "Orientación y Psicología"
+    }
+   ]
+  }
+ ]
+}
