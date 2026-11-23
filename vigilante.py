@@ -46,6 +46,56 @@ def colejobs(provincia):
     return out
 
 
+def _txt(x):
+    return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", x))).strip()
+
+
+def jobsora(consulta, lugar):
+    """Resultados de es.jobsora.com (agregador; incluye CEU, Loyola, Domestiko...)."""
+    h = get(f"https://es.jobsora.com/empleos-{consulta}-{lugar}")
+    out = []
+    for m in re.finditer(r'data-href="(https://es\.jobsora\.com/oferta-\d+)[^"]*"[^>]*>(.*?)</article>', h, re.S):
+        t = _txt(m.group(2)).replace("relevancia fecha", "").strip()
+        if t:
+            out.append({"id": m.group(1), "titulo": t[:150], "url": m.group(1), "origen": f"Jobsora · {lugar}"})
+    return out
+
+
+def edutalent():
+    """Últimas ofertas de edutalent.es (centros concertados; ámbito nacional)."""
+    h = get("https://edutalent.es/vacantes-madrid/")
+    out, vistos = [], set()
+    for bloque in h.split('<div class="offer"')[1:]:
+        u = re.search(r"window\.location='([^']+)'", bloque)
+        if not u or u.group(1) in vistos:
+            continue
+        url = u.group(1)
+        vistos.add(url)
+        if any(x.lower() in _txt(bloque).lower() for x in CONFIG.get("edutalent_excluir_lugares", [])):
+            continue
+        h3 = re.search(r"<h3>(.*?)</h3>", bloque, re.S)
+        t = _txt(h3.group(1)) if h3 else url.rstrip("/").split("/")[-1].replace("-", " ")
+        resto = _txt(bloque[bloque.find("</h3>") + 5:])[:70] if h3 else ""
+        out.append({"id": url, "titulo": f"{t} — {resto}"[:150], "url": url, "origen": "Edutalent (toda España)"})
+    return out
+
+
+def cdlmurcia():
+    """Ofertas de empleo de Educación del Colegio de Doctores y Licenciados de Murcia."""
+    url = "https://cdlmurcia.es/ofertas-de-empleo-de-educacion/"
+    t = _txt(get(url))
+    trozos = re.split(r"(?=Oferta de [^()]{3,80}\(\d\d/\d\d/\d{4}\))", t)
+    out = []
+    for z in trozos:
+        m = re.match(r"(Oferta de [^()]{3,80}\(\d\d/\d\d/\d{4}\))\s*(.*)", z)
+        if not m:
+            continue
+        pu = re.search(r"Puesto:\s*([^.]{3,90})", m.group(2))
+        tit = m.group(1) + (" · " + pu.group(1) if pu else "")
+        out.append({"id": f"{url}#{m.group(1)}{m.group(2)[:40]}", "titulo": tit, "url": url, "origen": "CDL Murcia"})
+    return out
+
+
 def talent(consulta, lugar):
     """Resultados de búsqueda en es.talent.com (agregador de ofertas)."""
     url = "https://es.talent.com/jobs?" + urllib.parse.urlencode({"k": consulta, "l": lugar})
@@ -108,6 +158,11 @@ def main():
     ofertas, fallos = [], []
     fuentes = [(f"colegios.es/{p}", lambda p=p: colegios_es(p)) for p in CONFIG["colegios_es_provincias"]]
     fuentes += [(f"colejobs/{p}", lambda p=p: colejobs(p)) for p in CONFIG.get("colejobs_provincias", [])]
+    fuentes += [(f"jobsora/{q}/{l}", lambda q=q, l=l: jobsora(q, l)) for q in CONFIG.get("jobsora_busquedas", []) for l in CONFIG.get("jobsora_lugares", [])]
+    if CONFIG.get("edutalent"):
+        fuentes.append(("edutalent", edutalent))
+    if CONFIG.get("cdlmurcia"):
+        fuentes.append(("cdlmurcia", cdlmurcia))
     fuentes += [(f"talent/{q}/{l}", lambda q=q, l=l: talent(q, l)) for q in CONFIG.get("talent_busquedas", []) for l in CONFIG.get("talent_lugares", [])]
     fuentes += [(u, lambda u=u: rss(u)) for u in CONFIG["feeds_rss"]]
     fuentes += [(u, lambda u=u: pagina_cambia(u)) for u in CONFIG["paginas_a_vigilar"]]
