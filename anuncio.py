@@ -5,15 +5,24 @@ import json, os, urllib.parse, urllib.request
 TOK, GRUPO = os.environ["TELEGRAM_TOKEN"], os.environ["TELEGRAM_GRUPO_ID"]
 TEXTO = """🍎 VACANTES DOCENTES ESPAÑA · by Maestría
 
-Aquí se publican las ofertas de empleo docente de toda España, cada una en el tema de su especialidad.
+Todas las ofertas de empleo docente de España, publicadas cada una en el tema de su especialidad.
 
-🔔 ¿Quieres recibir SOLO lo que te interesa, directamente en tu chat privado?
-Elige tu etapa, tu especialidad y tus comunidades, y el bot te avisa cuando salga una oferta que encaje contigo.
+🔔 RECIBE SOLO LO QUE TE INTERESA, EN TU CHAT PRIVADO
+El bot de Maestría te avisa en cuanto sale una oferta que encaja contigo: tu etapa, tu especialidad y tus comunidades. Sin ruido y sin buscar.
 
-👉 Abre el bot y pulsa Iniciar (1 minuto):
-https://t.me/Vacantes7_bot
+⚙️ Cómo configurarlo (1 minuto):
+1️⃣ Abre el bot: https://t.me/Vacantes7_bot
+2️⃣ Pulsa Iniciar (o escribe /start)
+3️⃣ Elige tu etapa: Infantil, Primaria, Secundaria, FP o Especialistas
+4️⃣ Marca tus áreas o especialidades
+5️⃣ Elige tus comunidades (o toda España)
+6️⃣ Pulsa Terminar. ¡Listo! 🎉
 
-🔕 ¿Demasiados avisos? Mantén pulsado un tema y elige Silenciar.
+Si prefieres verlo todo, elige «todas las ofertas» y las verás aquí, en el grupo.
+
+🛠 Cambia tus ajustes cuando quieras con /ajustes, pausa los avisos con /pausa y bórrate con /baja.
+
+🔕 ¿Demasiados avisos del grupo? Mantén pulsado un tema y elige Silenciar.
 
 👥 Invita a tus compañeros:
 https://t.me/+fuy6ZtSJm4o1Y2Q8
@@ -26,7 +35,6 @@ def api(metodo, **datos):
     return json.load(urllib.request.urlopen(req, timeout=30))
 
 
-m = api("sendMessage", chat_id=GRUPO, text=TEXTO, disable_web_page_preview="true")
-print("publicado", m["result"]["message_id"])
-r = api("pinChatMessage", chat_id=GRUPO, message_id=m["result"]["message_id"], disable_notification="true")
-print("fijado", r.get("ok"))
+# Edita el anuncio ya fijado (mensaje 149) en lugar de publicar otro.
+r = api("editMessageText", chat_id=GRUPO, message_id=149, text=TEXTO, disable_web_page_preview="true")
+print("editado", r.get("ok"))
