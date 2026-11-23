@@ -18,6 +18,7 @@ CONFIG = json.loads((AQUI / "config.json").read_text(encoding="utf8"))
 VISTOS_PRIV = AQUI / "vistos.json"
 VISTOS_PUB = AQUI / "vistos_publico.json"
 TEMAS_F = AQUI / "topics.json"
+LIMITES_F = AQUI / "limites.json"
 POR_CODIGO = {p[1]: [] for p in PROVINCIAS}
 PROV_POR_SLUG = {p[2]: p for p in PROVINCIAS}
 
@@ -96,6 +97,26 @@ def mensaje_publico(o, tema_lista):
     return f"🏫 {titulo}\n📍 {lugar}\n🔗 {o['url']}\n{etiquetas}"
 
 
+def limitar_semanal(lista, salida):
+    """Webs de clases particulares online (Superprof, Preply...): se repiten mucho, dejo pasar como máximo una por semana."""
+    dominios = CONFIG.get("limite_semanal", ["superprof", "preply"])
+    try:
+        ult = json.loads(LIMITES_F.read_text())
+    except Exception:
+        ult = {}
+    ahora, res = time.time(), []
+    for o in lista:
+        d = next((x for x in dominios if x in _n(o["titulo"] + " " + o["url"])), None)
+        d = f"{salida}/{d}" if d else None
+        if d:
+            if ahora - ult.get(d, 0) < 7 * 86400:
+                continue
+            ult[d] = ahora
+        res.append(o)
+    LIMITES_F.write_text(json.dumps(ult))
+    return res
+
+
 def cargar(f):
     return set(json.loads(f.read_text())) if f.exists() else None
 
@@ -137,7 +158,7 @@ def main():
     primera_priv = v_priv is None
     v_priv = v_priv or set()
     nuevas = [o for o in ofertas if o["id"] not in v_priv]
-    para_mi = [o for o in nuevas if o.get("solo_privado") or (coincide_privado(o) and (o.get("ccaa") in comunidades_priv or not o.get("ccaa")))]
+    para_mi = limitar_semanal([o for o in nuevas if o.get("solo_privado") or (coincide_privado(o) and (o.get("ccaa") in comunidades_priv or not o.get("ccaa")))], "privado")
     if not primera_priv:
         for o in para_mi:
             telegram(chat_priv, f"🔔 {o['titulo']}\n{o['origen']}\n{o['url']}")
@@ -152,11 +173,11 @@ def main():
                   and not re.search(EXCLUIR, _n(o["titulo"]))
                   and (not o.get("agregador") or es_docente(o["titulo"]))]
     if volcado:
-        a_publicar = candidatas[:volcado]
+        a_publicar = limitar_semanal(candidatas, "grupo")[:volcado]
     elif primera_pub:
         a_publicar = []
     else:
-        a_publicar = [o for o in candidatas if o["id"] not in v_pub]
+        a_publicar = limitar_semanal([o for o in candidatas if o["id"] not in v_pub], "grupo")
     enviadas = 0
     if grupo_id and hilos:
         for o in a_publicar:
