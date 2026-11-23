@@ -41,6 +41,28 @@ def colejobs(provincia):
     return out
 
 
+def colejobs_nacional(paginas=6):
+    """Listado nacional de colejobs.es (20 ofertas por página; la zona va en el texto)."""
+    out, vistos = [], set()
+    urls = ["https://www.colejobs.es/ofertas-de-empleo/"] + [f"https://www.colejobs.es/ofertas-de-empleo/paginador/{n}-{paginas}/" for n in range(2, paginas + 1)]
+    for base in urls:
+        try:
+            h = get(base)
+        except Exception:
+            if base == urls[0]:
+                raise
+            continue
+        for href, txt in re.findall(r'<a[^>]+href="([^"#]+)"[^>]*>(.*?)</a>', h, re.S):
+            if not re.search(r"ofertas-de-empleo/[^/]+-n[0-9A-Za-z]+/?$", href):
+                continue
+            url = urllib.parse.urljoin(base, href)
+            t = re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", txt))).strip()
+            if t and url not in vistos:
+                vistos.add(url)
+                out.append({"id": url, "titulo": t[:260], "url": url, "origen": "Colejobs"})
+    return out
+
+
 def _txt(x):
     return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", x))).strip()
 

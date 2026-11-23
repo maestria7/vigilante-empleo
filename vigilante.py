@@ -35,7 +35,7 @@ def construir_fuentes(grupo):
     if grupo in ("ligeras", "todas"):
         for nombre, cod, cs, cj, tl in PROVINCIAS:
             fs.append((f"colegios.es/{cs}", lambda cs=cs: F.colegios_es(cs), {"ccaa": cod, "prov": nombre}))
-            fs.append((f"colejobs/{cj}", lambda cj=cj: F.colejobs(cj), {"ccaa": cod, "prov": nombre}))
+        fs.append(("colejobs", F.colejobs_nacional, {}))
         fs.append(("edutalent", F.edutalent, {}))
         fs.append(("cdlmurcia", F.cdlmurcia, {"ccaa": "MUR", "prov": "Murcia"}))
         for u in CONFIG.get("feeds_rss", []):
