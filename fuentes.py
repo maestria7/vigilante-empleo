@@ -97,6 +97,47 @@ def edutalent():
     return out
 
 
+def empleoo():
+    """Ofertas de educación de empleoo.net (agregador; la web repite el mismo anuncio en muchas ciudades).
+
+    Lee la categoría «Educación y formación» y unas búsquedas docentes. Las copias del mismo anuncio que
+    solo cambian de ciudad (3 o más con el mismo comienzo de título) se juntan en una sola oferta."""
+    paginas = [f"https://empleoo.net/job-category/educacion-y-formacion/{'' if n == 1 else f'page/{n}/'}" for n in range(1, 5)]
+    paginas += [f"https://empleoo.net/trabajo/?s={urllib.parse.quote(q)}"
+                for q in ("maestro", "educación física", "primaria", "infantil", "profesor")]
+    ofertas, vistos = [], set()
+    for p in paginas:
+        try:
+            h = get(p)
+        except Exception:
+            continue
+        for art in re.findall(r"<article\b.*?</article>", h, re.S):
+            u = re.search(r'href="(https://empleoo\.net/trabajo/[^"]+)"', art)
+            t = re.search(r"<h\d[^>]*>.*?<a[^>]*>(.*?)</a>", art, re.S)
+            if not u or not t or u.group(1) in vistos:
+                continue
+            vistos.add(u.group(1))
+            ofertas.append((_txt(t.group(1)), u.group(1)))
+    ajenas = ("jardiner", "barber", "peluquer", "autoescuela", "psiquiatra", "psicólogo", "médico", "enfermer",
+              "camarer", "mcdonald", "conserje", "azafat", "administrativ", "comercial", "conductor", "optometr")
+    ofertas = [(t, u) for t, u in ofertas if not any(x in t.lower() for x in ajenas)]
+    grupos = {}
+    for t, u in ofertas:
+        grupos.setdefault(" ".join(t.lower().split()[:7]), []).append((t, u))
+    out = []
+    for lista in grupos.values():
+        if len(lista) >= 3:  # mismo anuncio clonado por ciudades: una sola oferta
+            pal = lista[0][0].split()[:7]
+            while pal and pal[-1].lower() in ("en", "desde", "de", "para", "–", "-", "|"):
+                pal.pop()
+            t = " ".join(pal)
+            out.append({"id": lista[0][1], "titulo": f"{t} (anuncio repetido en {len(lista)} ciudades, empresa sin identificar)"[:150],
+                        "url": lista[0][1], "origen": "Empleoo.net"})
+        else:
+            out += [{"id": u, "titulo": t[:150], "url": u, "origen": "Empleoo.net"} for t, u in lista]
+    return out
+
+
 def escolapios_emaus():
     """Bolsa de empleo pública de Escolapios Emaús (Aragón, Navarra, País Vasco, La Rioja, Andalucía)."""
     base = "http://www.bolsadeempleo.escolapiosemaus.org/"

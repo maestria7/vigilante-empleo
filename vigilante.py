@@ -41,6 +41,7 @@ def construir_fuentes(grupo):
         if CONFIG.get("colejobs"):  # bloquea los servidores de GitHub (403): desactivado
             fs.append(("colejobs", F.colejobs_nacional, {}))
         fs.append(("edutalent", F.edutalent, {}))
+        fs.append(("empleoo", F.empleoo, {"agregador": True}))
         if CONFIG.get("maristas"):  # cierra la conexión a los servidores de GitHub: desactivado
             fs.append(("maristas-iberica", F.maristas_iberica, {"completa": "maristas"}))
         fs.append(("escolapios-emaus", F.escolapios_emaus, {"completa": "escolapios"}))
