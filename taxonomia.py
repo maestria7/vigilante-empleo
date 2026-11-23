@@ -48,7 +48,7 @@ _SOLO_SEC = {
     "mat": r"matematicas",
     "geohist": r"geografia|historia|ciencias sociales",
     "biogeo": r"biologia|geologia|ciencias naturales",
-    "fq": r"fisica y quimica|quimica|\bfisica\b(?! y)",
+    "fq": r"fisica y quimica|quimica|\bfisica\b",
     "tec": r"tecnologia",
     "inf": r"informatica|programacion|digitalizacion",
     "plas": r"plastica|dibujo|artes plasticas|educacion artistica",

@@ -12,6 +12,7 @@ from pathlib import Path
 import fuentes as F
 from clasificar import COMUNIDADES, comunidad_y_provincia, es_docente, hashtags, tag_tema, temas, EXCLUIR, _n
 from provincias import JOBSORA_LUGAR, PROVINCIAS
+from taxonomia import areas as areas_de
 
 AQUI = Path(__file__).parent
 CONFIG = json.loads((AQUI / "config.json").read_text(encoding="utf8"))
@@ -119,6 +120,24 @@ def es_vieja(o, dias=None):
         return (datetime.date.today() - datetime.date.fromisoformat(o["pub"])).days > dias
     except Exception:
         return False
+
+
+def entregar_a_suscriptores(ofertas):
+    """Manda las ofertas nuevas a la web de Maestría, que las reparte por privado a quien las eligió en el bot con formulario.
+    Solo actúa si VACANTES_ENTREGA_URL y VACANTES_ENTREGA_SECRETO están configuradas; un fallo aquí nunca debe romper el vigilante."""
+    url, secreto = os.environ.get("VACANTES_ENTREGA_URL"), os.environ.get("VACANTES_ENTREGA_SECRETO")
+    if not url or not secreto or not ofertas:
+        return
+    carga = [{"id": o["id"], "titulo": o["titulo"][:400], "url": o["url"], "ccaa": o.get("ccaa"), "prov": o.get("prov"),
+              "areas": areas_de(o["titulo"])} for o in ofertas if o["url"].startswith("http")]
+    for i in range(0, len(carga), 40):
+        try:
+            req = urllib.request.Request(url, data=json.dumps({"ofertas": carga[i:i + 40]}).encode(),
+                                         headers={"Content-Type": "application/json", "Authorization": f"Bearer {secreto}"})
+            with urllib.request.urlopen(req, timeout=60) as r:
+                print("entrega a suscriptores:", r.read().decode()[:200])
+        except Exception as e:
+            print("FALLO entrega a suscriptores:", e, file=sys.stderr)
 
 
 def cargar_log():
@@ -272,6 +291,8 @@ def main():
                                 "f": o.get("completa"), "aus": 0, "x": texto, "m": msgs, "estado": ""}
         revisar_publicadas(log, grupo_id, ids_completas)
         guardar_log(log)
+        if not volcado:
+            entregar_a_suscriptores(a_publicar)
     elif a_publicar:
         print(f"[grupo sin configurar: {len(a_publicar)} ofertas no publicadas]")
     v_pub |= {o["id"] for o in ofertas}
