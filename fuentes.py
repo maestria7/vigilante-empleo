@@ -95,6 +95,22 @@ def edutalent():
     return out
 
 
+def escolapios_emaus():
+    """Bolsa de empleo pública de Escolapios Emaús (Aragón, Navarra, País Vasco, La Rioja, Andalucía)."""
+    base = "http://www.bolsadeempleo.escolapiosemaus.org/"
+    h = get(base)
+    out = []
+    for fila in re.findall(r'<tr data-oferta-id="(\d+)">(.*?)</tr>', h, re.S):
+        oid, cuerpo = fila
+        celdas = [_txt(c) for c in re.findall(r"<td[^>]*>(.*?)</td>", cuerpo, re.S)]
+        if len(celdas) < 6:
+            continue
+        fecha, desc, _vac, _cand, lugar, prov = celdas[:6]
+        out.append({"id": f"{base}#oferta-{oid}", "titulo": f"{desc} — {lugar} ({prov})"[:150],
+                    "url": f"{base}#oferta-{oid}", "origen": "Escolapios Emaús"})
+    return out
+
+
 def cdlmurcia():
     """Ofertas de empleo de Educación del Colegio de Doctores y Licenciados de Murcia."""
     url = "https://cdlmurcia.es/ofertas-de-empleo-de-educacion/"
