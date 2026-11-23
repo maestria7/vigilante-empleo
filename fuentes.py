@@ -1,5 +1,5 @@
 """Funciones que leen cada web de empleo y devuelven una lista de ofertas."""
-import hashlib, html, re, urllib.parse, urllib.request
+import urllib.error, hashlib, html, re, urllib.parse, urllib.request
 import xml.etree.ElementTree as ET
 
 UA = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120 Safari/537.36"}
@@ -108,6 +108,30 @@ def escolapios_emaus():
         fecha, desc, _vac, _cand, lugar, prov = celdas[:6]
         out.append({"id": f"{base}#oferta-{oid}", "titulo": f"{desc} — {lugar} ({prov})"[:150],
                     "url": f"{base}#oferta-{oid}", "origen": "Escolapios Emaús"})
+    return out
+
+
+def maristas_iberica():
+    """Bolsa pública de la Provincia Marista Ibérica (Cáceres, Castilla-La Mancha, Madrid, Aragón, País Vasco, Navarra, La Rioja)."""
+    base = "https://trabajaconnosotros.maristasiberica.es"
+    out, vistos = [], set()
+    for pag in range(1, 9):
+        try:
+            h = get(f"{base}/?page={pag}&items=5")
+        except urllib.error.HTTPError:
+            break  # página inexistente: se acabaron las ofertas
+        nuevos = 0
+        for m in re.finditer(r"<a class='list-group-item ofportada' ttl_of='(.*?)' url_of='([^']+)'>(.*?)</a>", h, re.S):
+            tit, url, cuerpo = html.unescape(m.group(1)).strip(), m.group(2), m.group(3)
+            if url in vistos:
+                continue
+            vistos.add(url)
+            nuevos += 1
+            lugar = re.search(r"<small>(.*?)</small>", cuerpo, re.S)
+            lugar = _txt(lugar.group(1)) if lugar else ""
+            out.append({"id": base + url, "titulo": f"{tit} — {lugar}"[:150], "url": base + url, "origen": "Maristas Ibérica"})
+        if not nuevos:
+            break
     return out
 
 

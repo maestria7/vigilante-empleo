@@ -39,6 +39,7 @@ def construir_fuentes(grupo):
         if CONFIG.get("colejobs"):  # bloquea los servidores de GitHub (403): desactivado
             fs.append(("colejobs", F.colejobs_nacional, {}))
         fs.append(("edutalent", F.edutalent, {}))
+        fs.append(("maristas-iberica", F.maristas_iberica, {}))
         fs.append(("escolapios-emaus", F.escolapios_emaus, {}))
         fs.append(("cdlmurcia", F.cdlmurcia, {"ccaa": "MUR", "prov": "Murcia"}))
         for u in CONFIG.get("feeds_rss", []):

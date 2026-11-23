@@ -57,7 +57,7 @@ EXTRA_LUGARES = {
     "CAN": ["canarias", "tenerife", "gran canaria", "lanzarote", "fuerteventura"], "CNT": ["santander", "torrelavega"],
     "CYL": ["castilla y león", "castilla y leon", "ponferrada"], "CLM": ["castilla-la mancha", "castilla la mancha", "talavera", "albacete", "puertollano", "alcázar de san juan"],
     "CAT": ["cataluña", "catalunya", "sabadell", "terrassa", "badalona", "hospitalet", "mataró", "reus"], "VAL": ["comunidad valenciana", "valència", "elche", "gandia", "torrevieja", "benidorm", "orihuela"],
-    "EXT": ["extremadura", "mérida", "merida", "plasencia"], "GAL": ["galicia", "vigo", "santiago de compostela", "ferrol", "coruña", "corunha"],
+    "EXT": ["extremadura", "mérida", "merida", "plasencia", "navalmoral", "don benito", "almendralejo"], "GAL": ["galicia", "vigo", "santiago de compostela", "ferrol", "coruña", "corunha"],
     "MAD": ["comunidad de madrid", "getafe", "alcalá de henares", "móstoles", "mostoles", "fuenlabrada", "leganés", "leganes", "alcorcón", "alcorcon", "pozuelo", "majadahonda", "las rozas", "torrejón", "alcobendas", "san sebastián de los reyes", "boadilla", "parla", "rivas", "collado villalba", "aranjuez", "tres cantos", "pinto", "valdemoro", "humanes", "coslada", "arganda"],
     "MUR": ["región de murcia", "region de murcia", "cartagena", "lorca", "molina de segura", "cabezo de torres", "yecla", "totana", "alcantarilla", "los belones", "san javier"],
     "NAV": ["pamplona", "navarra"], "PV": ["país vasco", "pais vasco", "euskadi", "bilbao", "vitoria", "san sebastián", "donostia", "getxo", "barakaldo"],
