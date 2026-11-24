@@ -8,7 +8,7 @@ import json, subprocess, sys
 from pathlib import Path
 
 AQUI = Path(__file__).parent
-FICHEROS = ["vistos.json", "vistos_publico.json", "limites.json", "publicadas.json", "salud.json"]
+FICHEROS = ["vistos.json", "vistos_publico.json", "limites.json", "publicadas.json", "salud.json", "metricas.json"]
 
 
 def sh(*a, check=True):
