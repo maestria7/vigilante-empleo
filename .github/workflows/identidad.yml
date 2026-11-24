@@ -1,0 +1,11 @@
+name: identidad
+on: workflow_dispatch
+jobs:
+  identidad:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 identidad.py
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_GRUPO_ID: ${{ secrets.TELEGRAM_GRUPO_ID }}
