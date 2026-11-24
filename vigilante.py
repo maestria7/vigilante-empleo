@@ -184,7 +184,7 @@ ETAPAS = {"Primaria": "Educación Primaria", "Infantil": "Educación Infantil", 
 
 
 def etapas_de(titulo, tema_lista):
-    """Etapas que la oferta nombra (o que se deducen de «maestro/a»); [] si no se sabe."""
+    """Etapas que la oferta nombra (las que pida: una, o varias si pide varias); [] si no se sabe."""
     t = _n(titulo[:150])
     reglas = (("Infantil", r"infantil|0-3|primer ciclo|preschool"), ("Primaria", r"primaria"),
               ("Secundaria", r"secundaria|\beso\b|bachiller"),
@@ -192,8 +192,6 @@ def etapas_de(titulo, tema_lista):
     out = [k for k, rx in reglas if re.search(rx, t)]
     if not out:  # sin etapa explícita: la que sugiere la clasificación (p. ej. matemáticas → Secundaria)
         out = [k for k, _ in reglas if k in tema_lista]
-    if not out and re.search(r"maestr", t):  # el cuerpo de maestros es de Infantil y Primaria
-        out = ["Infantil", "Primaria"]
     return out
 
 
