@@ -214,7 +214,7 @@ def mensaje_publico(o, tema_lista):
             partes.append(x)
     lugar = " · ".join(partes) or "Sin zona"
     etapas_k = etapas_de(o["titulo"], tema_lista)
-    etiquetas = " ".join(dict.fromkeys(hashtags(o.get("ccaa"), o.get("prov")) + [tag_tema(t) for t in tema_lista]
+    etiquetas = " ".join(dict.fromkeys(hashtags(o.get("ccaa"), o.get("prov")) + [tag_tema(t) for t in tema_lista if t not in ETAPAS]
                                        + [tag_tema(k) for k in etapas_k]))
     titulo = o["titulo"] if len(o["titulo"]) <= 110 else o["titulo"][:107].rsplit(" ", 1)[0] + "…"
     etapas = [ETAPAS[k] for k in etapas_k]
