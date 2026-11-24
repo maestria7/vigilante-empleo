@@ -183,6 +183,20 @@ def revisar_publicadas(log, grupo_id, ids_completas):
 ETAPAS = {"Primaria": "Educación Primaria", "Infantil": "Educación Infantil", "Secundaria": "ESO y Bachillerato", "FP": "Formación Profesional"}
 
 
+def etapas_de(titulo, tema_lista):
+    """Etapas que la oferta nombra (o que se deducen de «maestro/a»); [] si no se sabe."""
+    t = _n(titulo[:150])
+    reglas = (("Infantil", r"infantil|0-3|primer ciclo|preschool"), ("Primaria", r"primaria"),
+              ("Secundaria", r"secundaria|\beso\b|bachiller"),
+              ("FP", r"\bfp\b|formacion profesional|ciclo formativo|cfgm|cfgs"))
+    out = [k for k, rx in reglas if re.search(rx, t)]
+    if not out:  # sin etapa explícita: la que sugiere la clasificación (p. ej. matemáticas → Secundaria)
+        out = [k for k, _ in reglas if k in tema_lista]
+    if not out and re.search(r"maestr", t):  # el cuerpo de maestros es de Infantil y Primaria
+        out = ["Infantil", "Primaria"]
+    return out
+
+
 def jornada_y_contrato(titulo):
     """Solo lo que el título dice con claridad; si no lo dice, no se muestra."""
     t = _n(titulo)
@@ -199,16 +213,17 @@ def mensaje_publico(o, tema_lista):
         if x and x not in partes:
             partes.append(x)
     lugar = " · ".join(partes) or "Sin zona"
-    etiquetas = " ".join(dict.fromkeys(hashtags(o.get("ccaa"), o.get("prov")) + [tag_tema(t) for t in tema_lista]))
+    etapas_k = etapas_de(o["titulo"], tema_lista)
+    etiquetas = " ".join(dict.fromkeys(hashtags(o.get("ccaa"), o.get("prov")) + [tag_tema(t) for t in tema_lista]
+                                       + [tag_tema(k) for k in etapas_k]))
     titulo = o["titulo"] if len(o["titulo"]) <= 110 else o["titulo"][:107].rsplit(" ", 1)[0] + "…"
-    etapas = [ETAPAS[t] for t in tema_lista if t in ETAPAS]
+    etapas = [ETAPAS[k] for k in etapas_k]
     especialidades = [t for t in tema_lista if t not in ETAPAS and t != "Otros"]
     jornada, contrato = jornada_y_contrato(o["titulo"])
     pub = fecha_es(o.get("pub")) if o.get("pub") else None
     hoy = datetime.date.today().strftime("%d/%m/%Y")
     lineas = ["🎯 Nueva oportunidad · Radar Docente", "", f"🏫 {titulo}", "", f"📍 Ubicación: {lugar}"]
-    if etapas:
-        lineas.append("🎓 Etapa: " + ", ".join(etapas))
+    lineas.append("🎓 Etapa: " + (", ".join(etapas) if etapas else "No indicada en la oferta"))
     if especialidades:
         lineas.append("🧩 Especialidad: " + ", ".join(especialidades))
     if jornada:

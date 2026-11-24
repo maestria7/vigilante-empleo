@@ -80,4 +80,6 @@ def hashtags(cod, provincia):
 
 
 def tag_tema(tema):
+    if tema in ("FP", "PT"):
+        return "#" + tema
     return "#" + re.sub(r"\W", "", _n(tema).title())
