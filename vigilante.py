@@ -92,7 +92,7 @@ def teclado_oferta(url, mensaje=""):
         texto = texto_compartir_oferta(mensaje)
         tg = "https://t.me/share/url?" + urllib.parse.urlencode({"url": grupo, "text": texto}, quote_via=urllib.parse.quote)
         wa = "https://wa.me/?text=" + urllib.parse.quote(f"{texto}\n{grupo}")
-        filas.append([{"text": "📣 Telegram", "url": tg}, {"text": "💬 WhatsApp", "url": wa}])
+        filas += [[{"text": "📣 Compartir en Telegram", "url": tg}], [{"text": "💬 Compartir en WhatsApp", "url": wa}]]
     return json.dumps({"inline_keyboard": filas})
 
 
