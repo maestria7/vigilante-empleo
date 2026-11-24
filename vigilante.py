@@ -21,6 +21,7 @@ VISTOS_PUB = AQUI / "vistos_publico.json"
 TEMAS_F = AQUI / "topics.json"
 LIMITES_F = AQUI / "limites.json"
 LOG_F = AQUI / "publicadas.json"
+SALUD_F = AQUI / "salud.json"
 POR_CODIGO = {p[1]: [] for p in PROVINCIAS}
 PROV_POR_SLUG = {p[2]: p for p in PROVINCIAS}
 
@@ -236,6 +237,64 @@ def mensaje_publico(o, tema_lista):
     return "\n".join(lineas)
 
 
+def _grupo_fuente(nombre):
+    """Agrupa las fuentes repetidas (colegios.es/<prov>, talent/<q>/<lugar>...) bajo un solo nombre para avisar una vez."""
+    if nombre.startswith("http"):
+        return "alerta de Google / página vigilada"
+    return nombre.split("/")[0]
+
+
+def revisar_salud(resultados, chat_priv):
+    """Avisa por privado si una fuente falla varias ejecuciones seguidas o se queda vacía mucho tiempo (y avisa al recuperarse).
+
+    resultados: {nombre_fuente: número de ofertas leídas, o None si falló}.
+    Fallo: 6 ejecuciones seguidas (3 en las pesadas). Vacía: 48 ejecuciones seguidas, solo si antes dio ofertas
+    (no se vigilan las alertas de Google ni las páginas, que pueden estar vacías con normalidad)."""
+    try:
+        salud = json.loads(SALUD_F.read_text())
+    except Exception:
+        salud = {}
+    ahora = int(time.time())
+    rotas, vacias, recuperadas = {}, {}, {}
+    for nombre, n in resultados.items():
+        e = salud.setdefault(nombre, {"fallos": 0, "vacias": 0, "con": 0, "aviso": ""})
+        pesada = nombre.startswith(("talent/", "jobsora/"))
+        if n is None:
+            e["fallos"] += 1
+            if e["fallos"] >= (3 if pesada else 6) and e["aviso"] != "fallo":
+                e["aviso"] = "fallo"
+                rotas.setdefault(_grupo_fuente(nombre), []).append(nombre)
+        elif n > 0:
+            if e["aviso"]:
+                recuperadas.setdefault(_grupo_fuente(nombre), []).append(nombre)
+            e.update(fallos=0, vacias=0, con=ahora, aviso="")
+        else:
+            if e["aviso"] == "fallo":  # vuelve a responder (aunque sin ofertas): ya no está rota
+                recuperadas.setdefault(_grupo_fuente(nombre), []).append(nombre)
+                e["aviso"] = ""
+            e["fallos"] = 0
+            e["vacias"] += 1
+            if e["vacias"] >= 48 and e["con"] and not nombre.startswith("http") and not pesada and e["aviso"] == "":
+                e["aviso"] = "vacia"
+                vacias.setdefault(_grupo_fuente(nombre), []).append(nombre)
+    SALUD_F.write_text(json.dumps(salud, ensure_ascii=False, sort_keys=True))
+
+    def lista(d):
+        return "\n".join(f"• {g}" + (f" ({len(v)} fuentes)" if len(v) > 1 else "") for g, v in sorted(d.items()))
+
+    partes = []
+    if rotas:
+        partes.append("🔴 Fuentes que fallan desde hace varias ejecuciones:\n" + lista(rotas))
+    if vacias:
+        partes.append("🟠 Fuentes que llevan mucho tiempo sin dar ninguna oferta (puede haber cambiado la web):\n" + lista(vacias))
+    if recuperadas:
+        partes.append("🟢 Fuentes recuperadas:\n" + lista(recuperadas))
+    if partes and chat_priv:
+        telegram(chat_priv, "⚠️ Radar Docente · estado de las fuentes\n\n" + "\n\n".join(partes))
+    elif partes:
+        print("[salud] " + " | ".join(partes))
+
+
 def limitar_semanal(lista, salida):
     """Webs de clases particulares online (Superprof, Preply...): se repiten mucho, dejo pasar como máximo una por semana."""
     dominios = CONFIG.get("limite_semanal", ["superprof", "preply"])
@@ -266,16 +325,22 @@ def main():
     volcado = int(args[args.index("--volcado") + 1]) if "--volcado" in args else 0
 
     fuentes = construir_fuentes(grupo)
-    ofertas, fallos, ids_completas = [], [], {}
+    ofertas, fallos, ids_completas, resultados = [], [], {}, {}
     for nombre, fn, meta in fuentes:
         try:
             res = [enriquecer(o, meta) for o in fn()]
+            resultados[nombre] = len(res)
             ofertas += res
             if meta.get("completa"):
                 ids_completas[meta["completa"]] = {o["id"] for o in res}
         except Exception as e:
             fallos.append(f"{nombre}: {e}")
+            resultados[nombre] = None
         time.sleep(0.3)
+    try:
+        revisar_salud(resultados, os.environ.get("TELEGRAM_CHAT_ID"))
+    except Exception as e:  # vigilar las fuentes nunca debe romper el vigilante
+        print("FALLO revisando la salud de las fuentes:", e, file=sys.stderr)
     # quitar duplicados dentro de la misma ejecución
     unicas = {}
     for o in ofertas:
