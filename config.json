@@ -27,10 +27,7 @@
     "https://www.google.com/alerts/feeds/12192901138431088622/2984885626387793129",
     "https://www.google.com/alerts/feeds/12192901138431088622/2984885626387792057"
   ],
-  "paginas_a_vigilar": [
-    "https://www.afoe.org/bolsas-trabajo/oferta-empleo-docente-centros-privados-2025-2/",
-    "https://www.afoe.org/bolsas-trabajo/empleo-especialidades-profesores-maestros-centros-privados/"
-  ],
+  "paginas_a_vigilar": [],
   "talent_busquedas": [
     "maestro colegio",
     "profesor colegio"
