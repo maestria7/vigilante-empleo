@@ -72,6 +72,20 @@ def enriquecer(o, meta):
     return o
 
 
+def enlace_compartir_grupo():
+    """Enlace del selector de Telegram para compartir el grupo con un mensaje ya preparado."""
+    texto = "Radar Docente by Maestría: todas las ofertas de empleo docente de España, ordenadas por especialidad y comunidad. Únete al grupo 👇"
+    return "https://t.me/share/url?" + urllib.parse.urlencode({"url": CONFIG.get("enlace_grupo", ""), "text": texto}, quote_via=urllib.parse.quote)
+
+
+def teclado_oferta(url):
+    """Botones bajo cada oferta del grupo: ver la oferta y compartir el grupo."""
+    fila = [{"text": "🔗 Ver oferta", "url": url}]
+    if CONFIG.get("enlace_grupo"):
+        fila.append({"text": "📣 Compartir grupo", "url": enlace_compartir_grupo()})
+    return json.dumps({"inline_keyboard": [fila]})
+
+
 def telegram(chat, texto, hilo=None, boton=None):
     tok = os.environ.get("TELEGRAM_TOKEN")
     if not tok or not chat:
@@ -81,7 +95,7 @@ def telegram(chat, texto, hilo=None, boton=None):
     if hilo:
         datos["message_thread_id"] = str(hilo)
     if boton:
-        datos["reply_markup"] = json.dumps({"inline_keyboard": [[{"text": "🔗 Ver oferta", "url": boton}]]})
+        datos["reply_markup"] = teclado_oferta(boton)
     for intento in range(4):
         try:
             r = urllib.request.urlopen(urllib.request.Request(f"https://api.telegram.org/bot{tok}/sendMessage", data=urllib.parse.urlencode(datos).encode()), timeout=30)
@@ -103,7 +117,7 @@ def editar(chat, mid, texto, boton=None):
         return False
     datos = {"chat_id": chat, "message_id": str(mid), "text": texto, "disable_web_page_preview": "true"}
     if boton:
-        datos["reply_markup"] = json.dumps({"inline_keyboard": [[{"text": "🔗 Ver oferta", "url": boton}]]})
+        datos["reply_markup"] = teclado_oferta(boton)
     try:
         urllib.request.urlopen(urllib.request.Request(f"https://api.telegram.org/bot{tok}/editMessageText", data=urllib.parse.urlencode(datos).encode()), timeout=30)
         return True
