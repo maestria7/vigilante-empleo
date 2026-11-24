@@ -180,6 +180,21 @@ def entregar_a_suscriptores(ofertas):
             print("FALLO entrega a suscriptores:", e, file=sys.stderr)
 
 
+def procesar_pendientes():
+    """Pide a la web que mande lo que estaba esperando (resúmenes diarios y avisos retenidos por la noche) a quien le toca. Se llama cada hora.
+    Un fallo aquí nunca debe romper el vigilante."""
+    url, secreto = os.environ.get("VACANTES_ENTREGA_URL"), os.environ.get("VACANTES_ENTREGA_SECRETO")
+    if not url or not secreto:
+        return
+    try:
+        req = urllib.request.Request(url.replace("/entregar", "/pendientes"), data=b"{}", method="POST",
+                                     headers={"Content-Type": "application/json", "Authorization": f"Bearer {secreto}"})
+        with urllib.request.urlopen(req, timeout=60) as r:
+            print("pendientes:", r.read().decode()[:200])
+    except Exception as e:
+        print("FALLO pendientes:", e, file=sys.stderr)
+
+
 def cargar_log():
     try:
         return json.loads(LOG_F.read_text())
@@ -445,6 +460,9 @@ def main():
         print(f"[grupo sin configurar: {len(a_publicar)} ofertas no publicadas]")
     v_pub |= {o["id"] for o in ofertas}
     VISTOS_PUB.write_text(json.dumps(sorted(v_pub)))
+
+    if grupo in ("ligeras", "todas"):
+        procesar_pendientes()
 
     print(f"[{grupo}] {len(ofertas)} leídas · privado: {len(para_mi)} · público: {len(a_publicar)} ({enviadas} mensajes) · {len(fallos)} fallos")
     if primera_priv or primera_pub:

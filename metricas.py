@@ -68,10 +68,18 @@ def main():
         if miembros is not None:
             lineas.append(f"   Entradas: {m['grupo_alta']} · Salidas: {m['grupo_baja']}")
         foto["bot"] = s["total"]
+        v = w.get("valoraciones") or {"utiles": 0, "noUtiles": 0, "porFuente": []}
         lineas += ["", f"🤖 Bot: {s['total']} suscriptores" + delta(s["total"], ayer.get("bot")),
                    f"   Altas: {m['bot_alta']} · Bajas: {m['bot_baja']} · Bloqueos: {m['bot_bloqueo']}",
                    f"   Con avisos activos: {s['completos'] - s['pausados'] if s['completos'] >= s['pausados'] else s['completos']}"
                    f" · En pausa: {s['pausados']} · Prefieren el grupo: {s['modoGrupo']}"]
+        if v["utiles"] + v["noUtiles"]:
+            lineas.append(f"   Valoraciones de los avisos: 👍 {v['utiles']} · 👎 {v['noUtiles']}")
+            malas = [f"{f['origen']} ({f['noUtiles']} 👎 de {f['utiles'] + f['noUtiles']})" for f in v["porFuente"] if f["noUtiles"]]
+            if malas:
+                lineas.append("   Fuentes con más 👎: " + ", ".join(malas[:3]))
+        else:
+            lineas.append("   Valoraciones de los avisos: ninguna todavía")
     except Exception as e:
         lineas += ["", "🤖 Bot: no he podido consultar las cifras"]
         print("FALLO bot:", e, file=sys.stderr)
