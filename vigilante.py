@@ -71,7 +71,7 @@ def enriquecer(o, meta):
     return o
 
 
-def telegram(chat, texto, hilo=None):
+def telegram(chat, texto, hilo=None, boton=None):
     tok = os.environ.get("TELEGRAM_TOKEN")
     if not tok or not chat:
         print("[sin Telegram configurado]\n" + texto)
@@ -79,6 +79,8 @@ def telegram(chat, texto, hilo=None):
     datos = {"chat_id": chat, "text": texto, "disable_web_page_preview": "true"}
     if hilo:
         datos["message_thread_id"] = str(hilo)
+    if boton:
+        datos["reply_markup"] = json.dumps({"inline_keyboard": [[{"text": "🔗 Ver oferta", "url": boton}]]})
     for intento in range(4):
         try:
             r = urllib.request.urlopen(urllib.request.Request(f"https://api.telegram.org/bot{tok}/sendMessage", data=urllib.parse.urlencode(datos).encode()), timeout=30)
@@ -94,11 +96,13 @@ def telegram(chat, texto, hilo=None):
     return False
 
 
-def editar(chat, mid, texto):
+def editar(chat, mid, texto, boton=None):
     tok = os.environ.get("TELEGRAM_TOKEN")
     if not tok or not chat:
         return False
     datos = {"chat_id": chat, "message_id": str(mid), "text": texto, "disable_web_page_preview": "true"}
+    if boton:
+        datos["reply_markup"] = json.dumps({"inline_keyboard": [[{"text": "🔗 Ver oferta", "url": boton}]]})
     try:
         urllib.request.urlopen(urllib.request.Request(f"https://api.telegram.org/bot{tok}/editMessageText", data=urllib.parse.urlencode(datos).encode()), timeout=30)
         return True
@@ -172,20 +176,49 @@ def revisar_publicadas(log, grupo_id, ids_completas):
             marca, r["estado"] = f"⏳ Publicada hace más de {dias_vieja} días: puede estar ya cubierta\n\n", "vieja"
         if marca:
             for hilo, mid in r["m"]:
-                editar(grupo_id, mid, marca + r["x"])
+                editar(grupo_id, mid, marca + r["x"], r.get("u"))
                 time.sleep(1.2)
 
 
+ETAPAS = {"Primaria": "Educación Primaria", "Infantil": "Educación Infantil", "Secundaria": "ESO y Bachillerato", "FP": "Formación Profesional"}
+
+
+def jornada_y_contrato(titulo):
+    """Solo lo que el título dice con claridad; si no lo dice, no se muestra."""
+    t = _n(titulo)
+    jornada = ("Parcial" if re.search(r"media jornada|jornada parcial|parcial|reducida", t)
+               else "Completa" if re.search(r"jornada completa|tiempo completo|full ?time", t) else None)
+    contrato = ("Sustitución" if re.search(r"sustitucion|baja (it|maternal|por)", t) else "Interinidad" if re.search(r"interin", t)
+                else "Indefinido" if re.search(r"indefinid", t) else "Temporal" if re.search(r"temporal", t) else None)
+    return jornada, contrato
+
+
 def mensaje_publico(o, tema_lista):
-    lugar = COMUNIDADES.get(o.get("ccaa"), "Sin zona")
-    if o.get("prov"):
-        lugar += f" · {o['prov']}"
-    etiquetas = " ".join(hashtags(o.get("ccaa"), o.get("prov")) + [tag_tema(t) for t in tema_lista])
+    partes = []
+    for x in (o.get("prov"), COMUNIDADES.get(o.get("ccaa"))):
+        if x and x not in partes:
+            partes.append(x)
+    lugar = " · ".join(partes) or "Sin zona"
+    etiquetas = " ".join(dict.fromkeys(hashtags(o.get("ccaa"), o.get("prov")) + [tag_tema(t) for t in tema_lista]))
     titulo = o["titulo"] if len(o["titulo"]) <= 110 else o["titulo"][:107].rsplit(" ", 1)[0] + "…"
-    f = fecha_es(o.get("pub")) if o.get("pub") else None
-    if f:
-        lugar += f" · 📅 {f}"
-    return f"🏫 {titulo}\n📍 {lugar}\n🔗 {o['url']}\n{etiquetas}"
+    etapas = [ETAPAS[t] for t in tema_lista if t in ETAPAS]
+    especialidades = [t for t in tema_lista if t not in ETAPAS and t != "Otros"]
+    jornada, contrato = jornada_y_contrato(o["titulo"])
+    pub = fecha_es(o.get("pub")) if o.get("pub") else None
+    hoy = datetime.date.today().strftime("%d/%m/%Y")
+    lineas = ["🎯 Nueva oportunidad · Radar Docente", "", f"🏫 {titulo}", "", f"📍 Ubicación: {lugar}"]
+    if etapas:
+        lineas.append("🎓 Etapa: " + ", ".join(etapas))
+    if especialidades:
+        lineas.append("🧩 Especialidad: " + ", ".join(especialidades))
+    if jornada:
+        lineas.append(f"🕒 Jornada: {jornada}")
+    if contrato:
+        lineas.append(f"📝 Contrato: {contrato}")
+    lineas.append("📅 " + (f"Publicada: {pub} · " if pub else "") + f"Detectada: {hoy}")
+    lineas.append(f"🔎 Fuente: {o['origen']}")
+    lineas += ["", etiquetas]
+    return "\n".join(lineas)
 
 
 def limitar_semanal(lista, salida):
@@ -282,7 +315,7 @@ def main():
             msgs = []
             for t in ts:
                 hilo = hilos.get(t) or hilos.get("Otros")
-                mid = telegram(grupo_id, texto, hilo)
+                mid = telegram(grupo_id, texto, hilo, o.get("url") if str(o.get("url", "")).startswith("http") else None)
                 if mid:
                     enviadas += 1
                     msgs.append([hilo, mid])
