@@ -78,12 +78,21 @@ def enlace_compartir_grupo():
     return "https://t.me/share/url?" + urllib.parse.urlencode({"url": CONFIG.get("enlace_grupo", ""), "text": texto}, quote_via=urllib.parse.quote)
 
 
-def teclado_oferta(url):
-    """Botones bajo cada oferta del grupo: ver la oferta y compartir el grupo."""
-    fila = [{"text": "🔗 Ver oferta", "url": url}]
+def enlace_compartir_oferta(url, mensaje):
+    """Selector de Telegram para mandar ESTA oferta a un compañero: título, zona, enlace y una invitación al grupo."""
+    lineas = [l for l in mensaje.splitlines() if l.startswith(("🏫", "📍"))]
+    invitacion = "Ofertas docentes así, cada día, en Radar Docente by Maestría 👉 " + CONFIG.get("enlace_grupo", "")
+    texto = "\n".join(lineas + ["", invitacion])
+    return "https://t.me/share/url?" + urllib.parse.urlencode({"url": url, "text": texto}, quote_via=urllib.parse.quote)
+
+
+def teclado_oferta(url, mensaje=""):
+    """Botones bajo cada oferta del grupo: ver la oferta, compartir esta oferta y compartir el grupo."""
+    filas = [[{"text": "🔗 Ver oferta", "url": url}]]
     if CONFIG.get("enlace_grupo"):
-        fila.append({"text": "📣 Compartir grupo", "url": enlace_compartir_grupo()})
-    return json.dumps({"inline_keyboard": [fila]})
+        filas.append([{"text": "📣 Compartir oferta", "url": enlace_compartir_oferta(url, mensaje)},
+                      {"text": "👥 Compartir grupo", "url": enlace_compartir_grupo()}])
+    return json.dumps({"inline_keyboard": filas})
 
 
 def telegram(chat, texto, hilo=None, boton=None):
@@ -95,7 +104,7 @@ def telegram(chat, texto, hilo=None, boton=None):
     if hilo:
         datos["message_thread_id"] = str(hilo)
     if boton:
-        datos["reply_markup"] = teclado_oferta(boton)
+        datos["reply_markup"] = teclado_oferta(boton, texto)
     for intento in range(4):
         try:
             r = urllib.request.urlopen(urllib.request.Request(f"https://api.telegram.org/bot{tok}/sendMessage", data=urllib.parse.urlencode(datos).encode()), timeout=30)
@@ -117,7 +126,7 @@ def editar(chat, mid, texto, boton=None):
         return False
     datos = {"chat_id": chat, "message_id": str(mid), "text": texto, "disable_web_page_preview": "true"}
     if boton:
-        datos["reply_markup"] = teclado_oferta(boton)
+        datos["reply_markup"] = teclado_oferta(boton, texto)
     try:
         urllib.request.urlopen(urllib.request.Request(f"https://api.telegram.org/bot{tok}/editMessageText", data=urllib.parse.urlencode(datos).encode()), timeout=30)
         return True
