@@ -128,14 +128,24 @@ def es_vieja(o, dias=None):
         return False
 
 
+def datos_para_web(o):
+    """Lo que la web necesita para repartir y mostrar la oferta con el mismo formato que el grupo."""
+    ts = temas(o["titulo"])
+    jornada, contrato = jornada_y_contrato(o["titulo"])
+    return {"id": o["id"], "titulo": o["titulo"][:400], "url": o["url"], "ccaa": o.get("ccaa"), "prov": o.get("prov"),
+            "areas": areas_de(o["titulo"]), "origen": o["origen"][:80], "pub": o.get("pub"),
+            "etapas": [ETAPAS[k] for k in etapas_de(o["titulo"], ts)],
+            "especialidades": [t for t in ts if t not in ETAPAS and t != "Otros"],
+            "jornada": jornada, "contrato": contrato}
+
+
 def entregar_a_suscriptores(ofertas):
     """Manda las ofertas nuevas a la web de Maestría, que las reparte por privado a quien las eligió en el bot con formulario.
     Solo actúa si VACANTES_ENTREGA_URL y VACANTES_ENTREGA_SECRETO están configuradas; un fallo aquí nunca debe romper el vigilante."""
     url, secreto = os.environ.get("VACANTES_ENTREGA_URL"), os.environ.get("VACANTES_ENTREGA_SECRETO")
     if not url or not secreto or not ofertas:
         return
-    carga = [{"id": o["id"], "titulo": o["titulo"][:400], "url": o["url"], "ccaa": o.get("ccaa"), "prov": o.get("prov"),
-              "areas": areas_de(o["titulo"])} for o in ofertas if o["url"].startswith("http")]
+    carga = [datos_para_web(o) for o in ofertas if o["url"].startswith("http")]
     for i in range(0, len(carga), 40):
         try:
             req = urllib.request.Request(url, data=json.dumps({"ofertas": carga[i:i + 40]}).encode(),
