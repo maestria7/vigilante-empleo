@@ -1,8 +1,7 @@
 name: Altas y bajas (9:00)
+# El horario lo lanza Supabase (pg_cron → API de GitHub, `lanzar_vigilante`): el programador de GitHub no llegó a disparar nunca este repositorio.
+# Horarios (UTC): ligeras 10 5-21 * * * · pesadas 40 5,8,11,14,17,20 * * * · resumen 30 7 * * * · altas y bajas 0 8 y 0 7 * * * (el script solo manda si son las 9-10 h en España).
 on:
-  schedule:
-    - cron: "0 8 * * *"   # 9:00 en invierno (CET)
-    - cron: "0 7 * * *"   # 9:00 en verano (CEST); el script solo manda si en España son las 9-10 h, y una vez al día
   workflow_dispatch:
     inputs:
       forzar:
