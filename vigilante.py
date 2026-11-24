@@ -78,20 +78,21 @@ def enlace_compartir_grupo():
     return "https://t.me/share/url?" + urllib.parse.urlencode({"url": CONFIG.get("enlace_grupo", ""), "text": texto}, quote_via=urllib.parse.quote)
 
 
-def enlace_compartir_oferta(url, mensaje):
-    """Selector de Telegram para mandar ESTA oferta a un compañero: título, zona, enlace y una invitación al grupo."""
+def texto_compartir_oferta(mensaje):
+    """Texto para pasar ESTA oferta a un compañero: título y zona, sin el enlace de la web de origen. Para verla completa tiene que unirse al grupo."""
     lineas = [l for l in mensaje.splitlines() if l.startswith(("🏫", "📍"))]
-    invitacion = "Ofertas docentes así, cada día, en Radar Docente by Maestría 👉 " + CONFIG.get("enlace_grupo", "")
-    texto = "\n".join(lineas + ["", invitacion])
-    return "https://t.me/share/url?" + urllib.parse.urlencode({"url": url, "text": texto}, quote_via=urllib.parse.quote)
+    return "\n".join(lineas + ["", "Está publicada en Radar Docente by Maestría. Únete al grupo (necesitas Telegram) y verás la oferta completa y más como esta 👇"])
 
 
 def teclado_oferta(url, mensaje=""):
-    """Botones bajo cada oferta del grupo: ver la oferta, compartir esta oferta y compartir el grupo."""
+    """Botones bajo cada oferta del grupo: ver la oferta y compartirla por Telegram o por WhatsApp (invitando al grupo, no con el enlace directo)."""
     filas = [[{"text": "🔗 Ver oferta", "url": url}]]
-    if CONFIG.get("enlace_grupo"):
-        filas.append([{"text": "📣 Compartir oferta", "url": enlace_compartir_oferta(url, mensaje)},
-                      {"text": "👥 Compartir grupo", "url": enlace_compartir_grupo()}])
+    grupo = CONFIG.get("enlace_grupo")
+    if grupo:
+        texto = texto_compartir_oferta(mensaje)
+        tg = "https://t.me/share/url?" + urllib.parse.urlencode({"url": grupo, "text": texto}, quote_via=urllib.parse.quote)
+        wa = "https://wa.me/?text=" + urllib.parse.quote(f"{texto}\n{grupo}")
+        filas.append([{"text": "📣 Telegram", "url": tg}, {"text": "💬 WhatsApp", "url": wa}])
     return json.dumps({"inline_keyboard": filas})
 
 
