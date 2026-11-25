@@ -29,8 +29,13 @@ GENERALES = [
 ES_DOCENTE = r"profesor|\bprofe\b|docente|maestr|educador|orientador|psicolog|logoped|tutor|colegio|escuela|primaria|infantil|\beso\b|bachiller|formador|ensenanza|educacion"
 EXCLUIR = r"dietista|candidaturas espont|auxiliar de|comedor|internship|bucodental|electromecanic|clases particulares|profesor particular|profesora particular|particular|monitor|limpieza|cocin|conductor|administrativ|recepcion|taller|camarer|dependient|socorrista|consultor|sap\b|comercial|enfermer"
 
-TEMAS = ["Primaria", "Educación Física", "PT", "Audición y Lenguaje", "Educación Especial",
+# Temas ESPECÍFICOS que devuelve temas() (para etiquetas y especialidades); NO son los temas del grupo (ver TEMAS_GRUPO).
+TEMAS_ESPECIFICOS = ["Primaria", "Educación Física", "PT", "Audición y Lenguaje", "Educación Especial",
          "Música", "Idiomas", "Infantil", "Secundaria", "FP", "Religión", "Orientación", "Otros"]
+TEMAS = TEMAS_ESPECIFICOS  # nombre antiguo, por si algo lo usa
+
+# Temas del grupo de Telegram (25-nov-2026): por ETAPA, uno por oferta (como mucho dos si nombra dos etapas); la especialidad va en las etiquetas (#EducacionFisica…).
+TEMAS_GRUPO = ["Infantil", "Primaria", "Secundaria y Bachillerato", "FP", "Apoyo y orientación", "Otras ofertas"]
 
 
 def temas(titulo, max_temas=2):

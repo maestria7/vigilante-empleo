@@ -231,5 +231,42 @@ class Horario(unittest.TestCase):
         c.assert_called_once()
 
 
+class TemasDelGrupo(unittest.TestCase):
+    def destino(self, titulo):
+        return V.temas_destino(titulo, C.temas(titulo))
+
+    def test_cada_oferta_va_a_su_etapa(self):
+        casos = {
+            "Maestro/a de Educación Infantil": ["Infantil"],
+            "Educador/a infantil 0-3 años": ["Infantil"],
+            "Maestro/a de Primaria": ["Primaria"],
+            "Maestro/a de Educación Física": ["Primaria"],  # «maestro/a» sin etapa cuenta como Primaria
+            "Profesor/a de Matemáticas ESO y Bachillerato": ["Secundaria y Bachillerato"],
+            "Profesor de Educación Secundaria Obligatoria": ["Secundaria y Bachillerato"],
+            "Docente Ciclo Formativo de Informática": ["FP"],
+            "Profesor/a de FP Administración": ["FP"],
+            "Maestro/a de Infantil y Primaria": ["Infantil", "Primaria"],
+        }
+        for titulo, esperado in casos.items():
+            self.assertEqual(self.destino(titulo), esperado, titulo)
+
+    def test_pt_al_educacion_especial_y_orientacion_van_a_apoyo_sea_cual_sea_la_etapa(self):
+        for titulo in ["Maestro/a de Primaria con mención en Audición y Lenguaje", "Maestra Infantil y Primaria - Pedagogía Terapéutica", "Maestro/a de PT",
+                       "Logopeda en colegio", "Orientador/a educativo", "Maestro/a de Educación Especial"]:
+            self.assertEqual(self.destino(titulo), ["Apoyo y orientación"], titulo)
+
+    def test_sin_etapa_va_a_otras_ofertas_y_nunca_a_un_tema_que_no_existe(self):
+        for titulo in ["Profesor/a de Inglés", "Profesor/a de Música", "Profesor de Religión", "Profesor/a de Yoga"]:
+            self.assertEqual(self.destino(titulo), ["Otras ofertas"], titulo)
+        todos = {d for t in ["Maestro/a de Primaria", "Profesor/a de Inglés", "Logopeda", "Docente FP", "Maestro/a Infantil", "Profesor ESO"] for d in self.destino(t)}
+        self.assertTrue(todos <= set(C.TEMAS_GRUPO))
+        import json as j
+        topics = j.loads((Path(__file__).parent / "topics.json").read_text())
+        self.assertEqual(set(topics), set(C.TEMAS_GRUPO))  # cada tema del grupo tiene su hilo en topics.json
+
+    def test_como_mucho_dos_temas_por_oferta(self):
+        self.assertLessEqual(len(self.destino("Maestro/a Infantil, Primaria y Secundaria")), 2)
+
+
 if __name__ == "__main__":
     unittest.main()

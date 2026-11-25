@@ -12,7 +12,7 @@ from pathlib import Path
 import calidad
 import fuentes as F
 import horario
-from clasificar import COMUNIDADES, comunidad_y_provincia, es_docente, hashtags, no_docente_agregador, tag_tema, temas, EXCLUIR, _n
+from clasificar import COMUNIDADES, TEMAS_GRUPO, comunidad_y_provincia, es_docente, hashtags, no_docente_agregador, tag_tema, temas, EXCLUIR, _n
 from provincias import JOBSORA_LUGAR, PROVINCIAS
 from taxonomia import areas as areas_de
 
@@ -249,6 +249,19 @@ def etapas_de(titulo, tema_lista):
     return out
 
 
+ETAPA_A_TEMA = {"Infantil": "Infantil", "Primaria": "Primaria", "Secundaria": "Secundaria y Bachillerato", "FP": "FP"}
+APOYO = {"PT", "Audición y Lenguaje", "Educación Especial", "Orientación"}
+
+
+def temas_destino(titulo, especialidades):
+    """En qué tema(s) del grupo se publica una oferta: PT, AL, Educación Especial y Orientación van a «Apoyo y orientación» (sea cual sea la etapa);
+    el resto, a su etapa (como mucho dos si la oferta nombra dos, p. ej. Infantil y Primaria); sin etapa, a «Otras ofertas»."""
+    if any(t in APOYO for t in especialidades):
+        return ["Apoyo y orientación"]
+    destinos = [ETAPA_A_TEMA[e] for e in etapas_de(titulo, especialidades) if e in ETAPA_A_TEMA]
+    return destinos[:2] or ["Otras ofertas"]
+
+
 def jornada_y_contrato(titulo):
     """Solo lo que el título dice con claridad; si no lo dice, no se muestra."""
     t = _n(titulo)
@@ -465,16 +478,17 @@ def main():
         for o in a_publicar:
             ts = temas(o["titulo"])
             texto = mensaje_publico(o, ts)
+            destinos = temas_destino(o["titulo"], ts)
             msgs = []
-            for t in ts:
-                hilo = hilos.get(t) or hilos.get("Otros")
+            for t in destinos:
+                hilo = hilos.get(t) or hilos.get("Otras ofertas")
                 mid = telegram(grupo_id, texto, hilo, o.get("url") if str(o.get("url", "")).startswith("http") else None)
                 if mid:
                     enviadas += 1
                     msgs.append([hilo, mid])
                 time.sleep(3.2)
             if msgs:
-                log[o["id"]] = {"t": o["titulo"], "u": o["url"], "c": o.get("ccaa"), "tm": ts, "ts": int(time.time()),
+                log[o["id"]] = {"t": o["titulo"], "u": o["url"], "c": o.get("ccaa"), "tm": destinos, "ts": int(time.time()),
                                 "f": o.get("completa"), "aus": 0, "x": texto, "m": msgs, "estado": ""}
         revisar_publicadas(log, grupo_id, ids_completas)
         guardar_log(log)

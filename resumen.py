@@ -8,7 +8,7 @@ from collections import Counter
 from pathlib import Path
 
 import horario
-from clasificar import TEMAS
+from clasificar import TEMAS_GRUPO
 from provincias import COMUNIDADES
 
 AQUI = Path(__file__).parent
@@ -31,8 +31,8 @@ if not nuevas:
 base = "https://t.me/c/" + str(GRUPO).replace("-100", "", 1)
 por_tema = Counter(t for r in nuevas for t in r["tm"])
 lineas = [f"📰 Resumen de las últimas 24 h: {len(nuevas)} ofertas nuevas\n"]
-for t in TEMAS:
-    if por_tema.get(t):
+for t in TEMAS_GRUPO:
+    if por_tema.get(t) and t in hilos:
         lineas.append(f"• {t}: {por_tema[t]} → {base}/{hilos[t]}")
 por_ccaa = Counter(r["c"] for r in nuevas)
 top = ", ".join(f"#{c or 'SinZona'} {n}" for c, n in por_ccaa.most_common(6))

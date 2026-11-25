@@ -1,15 +1,8 @@
 {
-  "Primaria": 2,
-  "Educación Física": 3,
-  "PT": 4,
-  "Audición y Lenguaje": 5,
-  "Educación Especial": 6,
-  "Música": 7,
-  "Idiomas": 8,
   "Infantil": 9,
-  "Secundaria": 10,
+  "Primaria": 2,
+  "Secundaria y Bachillerato": 10,
   "FP": 11,
-  "Religión": 12,
-  "Orientación": 13,
-  "Otros": 14
+  "Apoyo y orientación": 5,
+  "Otras ofertas": 14
 }

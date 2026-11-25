@@ -7,7 +7,7 @@ grupo con permiso para gestionar temas, y el grupo debe tener los Temas activado
 import json, os, urllib.parse, urllib.request
 from pathlib import Path
 
-from clasificar import TEMAS
+from clasificar import TEMAS_GRUPO
 from provincias import COMUNIDADES
 
 TOK, GRUPO = os.environ["TELEGRAM_TOKEN"], os.environ["TELEGRAM_GRUPO_ID"]
@@ -20,7 +20,7 @@ def api(metodo, **datos):
 
 
 hilos = json.loads(F.read_text()) if F.exists() else {}
-for t in TEMAS:
+for t in TEMAS_GRUPO:
     if t in hilos:
         continue
     r = api("createForumTopic", chat_id=GRUPO, name=t)
