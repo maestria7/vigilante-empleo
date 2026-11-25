@@ -16,7 +16,7 @@ ESPECIFICAS = [
     ("Educación Especial", r"educacion especial|necesidades educativas|neae|integracion social"),
     ("Educación Física", r"educacion fisica|ed\.? ?fisica|\bef\b|actividad fisica|deport"),
     ("Música", r"musica|musical|conservatorio|violonchelo|violin|piano|guitarra|canto\b"),
-    ("Idiomas", r"ingles|english|frances|aleman|bilingue|lengua extranjera|idioma"),
+    ("Idiomas", r"(?<![\(\w])(?:ingles|english|frances|aleman)(?!\s*(?:\(|[abc][12]\b|nivel))|lengua extranjera|\bidioma"),
     ("Infantil", r"infantil|preschool|0-3|primer ciclo"),
 ]
 PRIMARIA = r"primaria|maestro|maestra|maestr"
@@ -61,7 +61,7 @@ def comunidad_y_provincia(texto):
     t = _n(texto)
     for nombre, cod, *_ in PROVINCIAS:
         n = _n(nombre)
-        if len(n) > 4 and re.search(r"\b" + re.escape(n) + r"\b", t):
+        if len(n) >= 4 and re.search(r"\b" + re.escape(n) + r"\b" + (r"(?!\s+(?:xiii|xii|xi|x|magno))" if n == "leon" else ""), t):
             return cod, nombre
     for cod, palabras in EXTRA_LUGARES.items():
         for p in palabras:
@@ -83,3 +83,20 @@ def tag_tema(tema):
     if tema in ("FP", "PT"):
         return "#" + tema
     return "#" + re.sub(r"\W", "", _n(tema).title())
+
+
+# Ofertas de agregadores (Jobsora, Talent…) que NO son docencia de centro. Se mira en título + empresa (fuerte) y, en la descripción, solo las
+# señales de clases particulares (una descripción de FP o de Educación Especial puede nombrar a los «mayores» o la «dependencia» sin que deje de ser docencia).
+EXCLUIR_AGREGADOR = (r"mayores|geriatr|tercera edad|residencia de ancian|ayuda a domicilio|dependencia|trabajo social|trabajador(?:a)? social|cuidador|"
+                     r"clases de refuerzo|refuerzo escolar|apoyo escolar|clases particulares|profesor(?:es|a|as)? particular|tutor(?:a)?(?:/a)? online|"
+                     r"macrosad|emocional\.?com|ubilearning|tus clases particulares|superprof|preply|doctor(?:a)? en|doctorado|"
+                     # oficios «maestros» (maestro encofrador, fontanero maestro…) y puestos que no son de enseñanza escolar
+                     r"maestr[oa@]s? (?:de obra|de cocina|de taller|de oficio|encofrador|chocolater|panader|pasteler|cervecer|fontaner|albanil|carpinter|pintor|soldador|electricist|instalador|joyer|zapater)|"
+                     r"(?:encofrador|chocolater|fontaner|panader|pasteler|albanil|carpinter|soldador)\w*\s+maestr|datos maestros|ingenier|arquitect|profesor(?:a)?(?:/a)? asociad|catedr|"
+                     r"educador(?:a)?(?: o educadora)? social|exclusion social|universitari|yoga|coach|grooming|stylist|\bremot[eo]s?\b|actividades de verano|canin|ocio y tiempo libre|"
+                     r"charcuter|de negocios|business|community builder|para empresas")
+SENALES_PARTICULARES = r"clases particulares|clases de refuerzo|refuerzo escolar|apoyo escolar|a domicilio|tutor(?:a)?(?:/a)? online"
+
+
+def no_docente_agregador(titulo, empresa="", desc=""):
+    return bool(re.search(EXCLUIR_AGREGADOR, _n(f"{titulo} {empresa}")) or re.search(SENALES_PARTICULARES, _n(desc)))

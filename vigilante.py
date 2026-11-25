@@ -10,7 +10,7 @@ import datetime, json, os, re, sys, time, urllib.error, urllib.parse, urllib.req
 from pathlib import Path
 
 import fuentes as F
-from clasificar import COMUNIDADES, comunidad_y_provincia, es_docente, hashtags, tag_tema, temas, EXCLUIR, _n
+from clasificar import COMUNIDADES, comunidad_y_provincia, es_docente, hashtags, no_docente_agregador, tag_tema, temas, EXCLUIR, _n
 from provincias import JOBSORA_LUGAR, PROVINCIAS
 from taxonomia import areas as areas_de
 
@@ -64,7 +64,7 @@ def construir_fuentes(grupo):
 def enriquecer(o, meta):
     o.update({k: v for k, v in meta.items() if k in ("ccaa", "prov", "agregador", "solo_privado", "grupo", "completa")})
     # si la fuente no dice dónde es, lo deduzco del texto
-    cod, prov = comunidad_y_provincia(o["titulo"])
+    cod, prov = comunidad_y_provincia(f"{o['titulo']} {o.get('lugar', '')}")
     if prov:  # el texto da una provincia concreta: manda sobre la de la búsqueda
         o["ccaa"], o["prov"] = cod, prov
     elif cod and not o.get("ccaa"):
@@ -368,6 +368,25 @@ def cargar(f):
     return set(json.loads(f.read_text())) if f.exists() else None
 
 
+def es_valida_agregador(o):
+    """Una oferta de un agregador solo pasa si parece docencia de centro: título docente y sin cuidado de mayores, clases particulares, etc."""
+    return es_docente(o["titulo"]) and not no_docente_agregador(o["titulo"], o.get("empresa", ""), o.get("desc", ""))
+
+
+def repartir(nuevas, max_pasada, max_agregador, max_diferidas):
+    """Protege al grupo de las avalanchas. Devuelve (a_publicar, diferidas, descartadas):
+    - a_publicar: como mucho `max_pasada` (primero las de fuentes propias, luego un máximo de `max_agregador` de agregadores);
+    - diferidas: las que sobran y se publicarán en próximas pasadas (hasta `max_diferidas`);
+    - descartadas: el exceso por encima de eso (se dan por vistas sin publicar: en una avalancha casi todo es ruido repetido)."""
+    propias = [o for o in nuevas if not o.get("agregador")]
+    agregadas = [o for o in nuevas if o.get("agregador")]
+    a_publicar = propias[:max_pasada]
+    a_publicar += agregadas[:max(0, min(max_agregador, max_pasada - len(a_publicar)))]
+    ids = {o["id"] for o in a_publicar}
+    resto = [o for o in propias + agregadas if o["id"] not in ids]
+    return a_publicar, resto[:max_diferidas], resto[max_diferidas:]
+
+
 def main():
     args = sys.argv[1:]
     grupo = next((a for a in args if a in ("ligeras", "pesadas", "todas")), "todas")
@@ -414,7 +433,8 @@ def main():
     primera_priv = v_priv is None
     v_priv = v_priv or set()
     nuevas = [o for o in ofertas if o["id"] not in v_priv]
-    para_mi = limitar_semanal([o for o in nuevas if o.get("solo_privado") or (coincide_privado(o) and (o.get("ccaa") in comunidades_priv or not o.get("ccaa")))], "privado")
+    para_mi = limitar_semanal([o for o in nuevas if o.get("solo_privado") or (coincide_privado(o) and (o.get("ccaa") in comunidades_priv or not o.get("ccaa"))
+                                                                         and (not o.get("agregador") or es_valida_agregador(o)))], "privado")[:CONFIG.get("max_publicar_por_pasada", 10)]
     if not primera_priv:
         for o in para_mi:
             telegram(chat_priv, f"🔔 {o['titulo']}\n{o['origen']}\n{o['url']}")
@@ -425,16 +445,22 @@ def main():
     v_pub = cargar(VISTOS_PUB)
     primera_pub = v_pub is None
     v_pub = v_pub or set()
+    ids_diferidas = set()
     candidatas = [o for o in ofertas if (not o.get("solo_privado") or o.get("grupo"))
                   and not re.search(EXCLUIR, _n(o["titulo"]))
-                  and (not o.get("agregador") or es_docente(o["titulo"]))
+                  and (not o.get("agregador") or es_valida_agregador(o))
                   and not es_vieja(o)]
     if volcado:
         a_publicar = limitar_semanal(candidatas, "grupo")[:volcado]
     elif primera_pub:
         a_publicar = []
     else:
-        a_publicar = limitar_semanal([o for o in candidatas if o["id"] not in v_pub], "grupo")
+        nuevas_grupo = limitar_semanal([o for o in candidatas if o["id"] not in v_pub], "grupo")
+        a_publicar, diferidas, descartadas = repartir(nuevas_grupo, CONFIG.get("max_publicar_por_pasada", 10), CONFIG.get("max_agregador_por_pasada", 4),
+                                                      CONFIG.get("max_diferidas", 30))
+        ids_diferidas = {o["id"] for o in diferidas}
+        if diferidas or descartadas:
+            print(f"[reparto] {len(nuevas_grupo)} nuevas: {len(a_publicar)} ahora, {len(diferidas)} para próximas pasadas, {len(descartadas)} descartadas (exceso)")
     enviadas = 0
     log = cargar_log()
     if grupo_id and hilos:
@@ -458,7 +484,7 @@ def main():
             entregar_a_suscriptores(a_publicar)
     elif a_publicar:
         print(f"[grupo sin configurar: {len(a_publicar)} ofertas no publicadas]")
-    v_pub |= {o["id"] for o in ofertas}
+    v_pub |= {o["id"] for o in ofertas if o["id"] not in ids_diferidas}  # las diferidas siguen sin ver: saldrán en las próximas pasadas
     VISTOS_PUB.write_text(json.dumps(sorted(v_pub)))
 
     if grupo in ("ligeras", "todas"):

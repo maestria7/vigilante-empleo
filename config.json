@@ -47,5 +47,8 @@
   ],
   "colejobs": false,
   "maristas": false,
-  "enlace_grupo": "https://t.me/+fuy6ZtSJm4o1Y2Q8"
+  "enlace_grupo": "https://t.me/+fuy6ZtSJm4o1Y2Q8",
+  "max_publicar_por_pasada": 10,
+  "max_agregador_por_pasada": 4,
+  "max_diferidas": 30
 }

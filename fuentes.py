@@ -69,14 +69,32 @@ def _txt(x):
     return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", x))).strip()
 
 
+_MINUSCULAS = {"de", "del", "la", "las", "el", "los", "en", "y", "o", "a", "para", "con", "por", "al", "un", "una", "e"}
+
+
+def _titulo_normal(t):
+    """Jobsora escribe los títulos con cada palabra en mayúscula («Profesor De Educación Física», «Educador/A»): se devuelve a su forma normal."""
+    palabras = [w.lower() if i and w.lower() in _MINUSCULAS else w for i, w in enumerate(t.split())]
+    return re.sub(r"/A\b", "/a", " ".join(palabras))
+
+
 def jobsora(consulta, lugar):
-    """Resultados de es.jobsora.com (agregador; incluye CEU, Loyola, Domestiko...)."""
+    """Resultados de es.jobsora.com (agregador; incluye CEU, Loyola, Domestiko...).
+
+    El título es SOLO el puesto (<h2>); la empresa, el lugar y un trozo de la descripción se guardan aparte y no se mezclan con el título
+    (antes se cogía todo el texto de la tarjeta y se clasificaba mal)."""
     h = get(f"https://es.jobsora.com/empleos-{consulta}-{lugar}")
     out = []
-    for m in re.finditer(r'data-href="(https://es\.jobsora\.com/oferta-\d+)[^"]*"[^>]*>(.*?)</article>', h, re.S):
-        t = _txt(m.group(2)).replace("relevancia fecha", "").strip()
-        if t:
-            out.append({"id": m.group(1), "titulo": t[:150], "url": m.group(1), "origen": f"Jobsora · {lugar}"})
+    for m in re.finditer(r'<article[^>]*data-href="(https://es\.jobsora\.com/oferta-\d+)[^"]*"[^>]*>(.*?)</article>', h, re.S):
+        a = m.group(2)
+        t = re.search(r'<h2 class="c-job-item__title">(.*?)</h2>', a, re.S)
+        titulo = _titulo_normal(_txt(t.group(1))) if t else ""
+        if not titulo:
+            continue
+        infos = [_txt(x) for x in re.findall(r'<div class="c-job-item__info-item">(.*?)</div>', a, re.S)]
+        d = re.search(r'<p class="c-job-item__description[^"]*">(.*?)</p>', a, re.S)
+        out.append({"id": m.group(1), "titulo": titulo[:150], "url": m.group(1), "origen": "Jobsora",
+                    "empresa": infos[0] if len(infos) > 1 else "", "lugar": infos[-1] if infos else "", "desc": _txt(d.group(1))[:300] if d else ""})
     return out
 
 
