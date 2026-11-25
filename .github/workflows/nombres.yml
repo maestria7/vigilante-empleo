@@ -7,9 +7,14 @@ jobs:
     steps:
       - run: |
           A="https://api.telegram.org/bot$TOK"
-          curl -s $A/setChatTitle -d chat_id="$GRUPO" --data-urlencode "title=Radar Docente · Ofertas"
-          echo; curl -s $A/setMyName --data-urlencode "name=Mi Alerta Docente"
-          echo; curl -s $A/getMyName; echo; curl -s $A/getMyDescription; echo; curl -s $A/getMyShortDescription; echo
+          curl -s $A/setMyDescription --data-urlencode "description=🔔 MI ALERTA DOCENTE · Radar Docente by Maestría
+
+Tu próxima plaza puede estar publicada hoy.
+
+Elige tus etapas, áreas y comunidades y te aviso por privado, al momento, solo de las ofertas que te encajan. Gratis.
+
+Pulsa «Iniciar» y empieza. 👇"
+          echo; curl -s $A/setMyShortDescription --data-urlencode "short_description=Avisos personales de ofertas docentes de toda España, solo de tu especialidad. Gratis. 🔔"
         env:
           TOK: ${{ secrets.TELEGRAM_TOKEN }}
           GRUPO: ${{ secrets.TELEGRAM_GRUPO_ID }}
