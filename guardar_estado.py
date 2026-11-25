@@ -8,7 +8,7 @@ import json, subprocess, sys
 from pathlib import Path
 
 AQUI = Path(__file__).parent
-FICHEROS = ["vistos.json", "vistos_publico.json", "limites.json", "publicadas.json", "salud.json", "metricas.json", "calidad.json"]
+FICHEROS = ["vistos.json", "vistos_publico.json", "limites.json", "publicadas.json", "salud.json", "metricas.json", "calidad.json", "instagram.json"]
 
 
 def sh(*a, check=True):
@@ -18,6 +18,9 @@ def sh(*a, check=True):
 def fusionar(a, b):
     if isinstance(a, list) or isinstance(b, list):
         return sorted(set(a or []) | set(b or []))
+    if "vistas" in a or "vistas" in b:  # instagram.json: unión de vistas y de enviadas
+        return {"sembrado": bool(a.get("sembrado") or b.get("sembrado")), "vistas": sorted(set(a.get("vistas", [])) | set(b.get("vistas", []))),
+                "enviadas": {**b.get("enviadas", {}), **a.get("enviadas", {})}}
     if any(isinstance(v, dict) for v in list(a.values()) + list(b.values())):  # publicadas.json: id -> registro
         out = dict(b)
         for k, v in a.items():

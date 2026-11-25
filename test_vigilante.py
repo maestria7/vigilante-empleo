@@ -8,6 +8,7 @@ import clasificar as C
 import enlaces as E
 import fuentes as F
 import horario
+import instagram as I
 import vigilante as V
 
 
@@ -267,6 +268,55 @@ class TemasDelGrupo(unittest.TestCase):
     def test_como_mucho_dos_temas_por_oferta(self):
         self.assertLessEqual(len(self.destino("Maestro/a Infantil, Primaria y Secundaria")), 2)
 
+
+
+class InstagramRecursos(unittest.TestCase):
+    AHORA = __import__("datetime").datetime(2026, 11, 25, 12, 0, tzinfo=__import__("datetime").timezone.utc)
+
+    def post(self, i, texto="Gestionar el ruido sin levantar la voz.\n\nNoise Level lo convierte en juego.\n\nComenta RUIDO y te envío el enlace.", dia="2026-11-25"):
+        return {"_id": i, "content": texto, "publishedAt": dia + "T10:00:00.000Z", "platformPostUrl": f"https://www.instagram.com/p/{i}/"}
+
+    def test_adelanto_quita_llamadas_a_la_accion(self):
+        t = I.adelanto("Un truco para tu clase.\n\nSígueme en @soymaestria para más.\n\n#ia #docentes")
+        self.assertNotIn("soymaestria", t)
+        self.assertNotIn("#", t)
+        self.assertIn("Un truco", t)
+
+    def test_adelanto_junta_dos_parrafos_si_el_primero_es_corto(self):
+        t = I.adelanto("Gestionar el ruido.\n\nNoise Level convierte el volumen en un juego.\n\nComenta RUIDO")
+        self.assertIn("Noise Level", t)
+        self.assertNotIn("Comenta", t)
+
+    def test_adelanto_se_corta_largo(self):
+        self.assertLessEqual(len(I.adelanto("palabra " * 200)), I.MAX_CARACTERES + 1)
+
+    def test_primera_vez_solo_siembra(self):
+        enviados, estado = [], {}
+        n = I.procesar([self.post("a"), self.post("b")], estado, self.AHORA, lambda t, u: enviados.append(u) or 1)
+        self.assertEqual((n, enviados), (0, []))
+        self.assertEqual(estado["vistas"], ["a", "b"])
+
+    def test_manda_la_nueva_una_sola_vez(self):
+        enviados, estado = [], {"sembrado": True, "vistas": ["a"]}
+        posts = [self.post("a"), self.post("b")]
+        self.assertEqual(I.procesar(posts, estado, self.AHORA, lambda t, u: enviados.append((t, u)) or 7), 1)
+        self.assertEqual(enviados[0][1], "https://www.instagram.com/p/b/")
+        self.assertTrue(enviados[0][0].startswith("📚 Nuevo recurso"))
+        self.assertEqual(I.procesar(posts, estado, self.AHORA, lambda t, u: enviados.append((t, u)) or 7), 0)
+        self.assertEqual(len(enviados), 1)
+
+    def test_si_falla_el_envio_se_reintenta(self):
+        estado = {"sembrado": True, "vistas": []}
+        self.assertEqual(I.procesar([self.post("b")], estado, self.AHORA, lambda t, u: None), 0)
+        self.assertNotIn("b", estado["vistas"])
+
+    def test_antiguas_no_se_envian_y_maximo_por_pasada(self):
+        enviados, estado = [], {"sembrado": True, "vistas": []}
+        posts = [self.post("vieja", dia="2026-11-10")] + [self.post(f"n{i}") for i in range(5)]
+        I.procesar(posts, estado, self.AHORA, lambda t, u: enviados.append(u) or 1)
+        self.assertEqual(len(enviados), I.MAX_POR_PASADA)
+        self.assertIn("vieja", estado["vistas"])
+        self.assertFalse(any("vieja" in u for u in enviados))
 
 if __name__ == "__main__":
     unittest.main()
