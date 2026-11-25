@@ -1,0 +1,15 @@
+name: nombres
+on:
+  workflow_dispatch:
+jobs:
+  b:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          A="https://api.telegram.org/bot$TOK"
+          curl -s $A/setChatTitle -d chat_id="$GRUPO" --data-urlencode "title=Radar Docente · Ofertas"
+          echo; curl -s $A/setMyName --data-urlencode "name=Mi Alerta Docente"
+          echo; curl -s $A/getMyName; echo; curl -s $A/getMyDescription; echo; curl -s $A/getMyShortDescription; echo
+        env:
+          TOK: ${{ secrets.TELEGRAM_TOKEN }}
+          GRUPO: ${{ secrets.TELEGRAM_GRUPO_ID }}
