@@ -8,6 +8,7 @@ Solo cifras: ningún nombre ni identificador. Si una de las dos partes no está 
 
 Env: TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, TELEGRAM_GRUPO_ID, VACANTES_ENTREGA_URL, VACANTES_ENTREGA_SECRETO. FORZAR=1 salta la comprobación de hora.
 """
+import calidad
 import datetime, json, os, sys, urllib.parse, urllib.request
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -83,6 +84,10 @@ def main():
     except Exception as e:
         lineas += ["", "🤖 Bot: no he podido consultar las cifras"]
         print("FALLO bot:", e, file=sys.stderr)
+    try:
+        lineas += [""] + calidad.lineas_informe(*calidad.resumen_24h())
+    except Exception as e:
+        print("FALLO informe de calidad:", e, file=sys.stderr)
     texto = "\n".join(lineas)
 
     if foto:

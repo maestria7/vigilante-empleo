@@ -9,6 +9,7 @@ Uso: python3 vigilante.py [ligeras|pesadas|todas] [--volcado N]
 import datetime, json, os, re, sys, time, urllib.error, urllib.parse, urllib.request
 from pathlib import Path
 
+import calidad
 import fuentes as F
 from clasificar import COMUNIDADES, comunidad_y_provincia, es_docente, hashtags, no_docente_agregador, tag_tema, temas, EXCLUIR, _n
 from provincias import JOBSORA_LUGAR, PROVINCIAS
@@ -409,6 +410,7 @@ def main():
         revisar_salud(resultados, os.environ.get("TELEGRAM_CHAT_ID"))
     except Exception as e:  # vigilar las fuentes nunca debe romper el vigilante
         print("FALLO revisando la salud de las fuentes:", e, file=sys.stderr)
+    leidas_crudas = list(ofertas)
     # quitar duplicados dentro de la misma ejecución
     unicas = {}
     for o in ofertas:
@@ -484,6 +486,11 @@ def main():
             entregar_a_suscriptores(a_publicar)
     elif a_publicar:
         print(f"[grupo sin configurar: {len(a_publicar)} ofertas no publicadas]")
+    if not volcado and not primera_pub:
+        try:
+            calidad.registrar(grupo, calidad.estadisticas(leidas_crudas, ofertas, v_pub, {o["id"] for o in candidatas}, {o["id"] for o in a_publicar}))
+        except Exception as e:  # el informe nunca debe romper el vigilante
+            print("FALLO anotando la calidad:", e, file=sys.stderr)
     v_pub |= {o["id"] for o in ofertas if o["id"] not in ids_diferidas}  # las diferidas siguen sin ver: saldrán en las próximas pasadas
     VISTOS_PUB.write_text(json.dumps(sorted(v_pub)))
 

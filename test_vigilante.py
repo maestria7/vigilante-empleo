@@ -3,7 +3,9 @@ import json, os, tempfile, unittest
 from pathlib import Path
 from unittest import mock
 
+import calidad
 import clasificar as C
+import enlaces as E
 import fuentes as F
 import vigilante as V
 
@@ -81,7 +83,7 @@ class FlujoCompleto(unittest.TestCase):
             fuente = [("jobsora", lambda: ofertas(150, True, "jobsora"), {"agregador": True})]
             salida = []
             with mock.patch.object(V, "VISTOS_PUB", vistos), mock.patch.object(V, "VISTOS_PRIV", priv), mock.patch.object(V, "LIMITES_F", d / "l.json"), \
-                 mock.patch.object(V, "LOG_F", d / "p.json"), mock.patch.object(V, "SALUD_F", d / "s.json"), mock.patch.object(V, "construir_fuentes", return_value=fuente), \
+                 mock.patch.object(V, "LOG_F", d / "p.json"), mock.patch.object(V, "SALUD_F", d / "s.json"), mock.patch.object(calidad, "F", d / "c.json"), mock.patch.object(V, "construir_fuentes", return_value=fuente), \
                  mock.patch.object(V, "es_docente", return_value=True), mock.patch.object(V.time, "sleep"), mock.patch("builtins.print", side_effect=lambda *a, **k: salida.append(" ".join(map(str, a)))), \
                  mock.patch.dict(os.environ, {}, clear=True):
                 V.main()
@@ -89,6 +91,100 @@ class FlujoCompleto(unittest.TestCase):
             self.assertIn("[reparto] 150 nuevas: 4 ahora, 30 para próximas pasadas, 116 descartadas", texto)
             vistas = set(json.loads(vistos.read_text()))
             self.assertEqual(len(vistas), 150 - 30)  # las 30 diferidas siguen sin ver; el resto (publicadas + descartadas) cuenta como visto
+            anotado = json.loads((d / "c.json").read_text())
+            cifras = next(iter(anotado.values()))["fuentes"]["jobsora"]
+            self.assertEqual(cifras["leidas"], 150)
+            self.assertEqual((cifras["publicadas"], cifras["tope"], cifras["filtradas"]), (4, 146, 0))
+
+
+class Calidad(unittest.TestCase):
+    def test_cuenta_por_fuente_lo_leido_visto_filtrado_publicado_y_retenido(self):
+        o = lambda i, f: {"id": i, "titulo": i, "origen": f}
+        leidas = [o("a", "Jobsora · madrid"), o("a2", "Jobsora · madrid"), o("b", "Jobsora · galicia"), o("c", "Jobsora · galicia"), o("d", "Jobsora · galicia"), o("e", "Edutalent (toda España)"), o("e", "Edutalent (toda España)")]
+        sin_dup = [leidas[0], leidas[2], leidas[3], leidas[4], leidas[5]]  # a2 repetida de a, y la segunda e repetida
+        st = calidad.estadisticas(leidas, sin_dup, ids_vistos={"c"}, ids_candidatas={"a", "b", "e"}, ids_publicadas={"a", "e"})
+        self.assertEqual(st["Jobsora"], {"leidas": 5, "repetidas": 1, "vistas": 1, "filtradas": 1, "publicadas": 1, "tope": 1})
+        self.assertEqual(st["Edutalent"]["publicadas"], 1)
+        self.assertEqual(st["Edutalent"]["repetidas"], 1)
+
+    def test_el_resumen_suma_las_ultimas_24_horas_y_avisa_del_ruido(self):
+        import datetime
+        with tempfile.TemporaryDirectory() as d:
+            ruta = Path(d) / "c.json"
+            ahora = datetime.datetime(2026, 11, 25, 8, 0, tzinfo=datetime.timezone.utc)
+            cifras = lambda **k: {**dict.fromkeys(calidad.COLUMNAS, 0), **k}
+            calidad.registrar("pesadas", {"Jobsora": cifras(leidas=1200, publicadas=4, tope=6, filtradas=90), "Edutalent": cifras(leidas=60, publicadas=3)}, ahora=ahora - datetime.timedelta(hours=3), ruta=ruta)
+            calidad.registrar("ligeras", {"Jobsora": cifras(leidas=0)}, ahora=ahora - datetime.timedelta(hours=2), ruta=ruta)
+            calidad.registrar("enlaces", enlaces={"comprobadas": 50, "cerradas": 2, "sin_respuesta": 5}, ahora=ahora - datetime.timedelta(hours=1), ruta=ruta)
+            calidad.registrar("pesadas", {"Jobsora": cifras(leidas=9)}, ahora=ahora - datetime.timedelta(hours=30), ruta=ruta)  # fuera de las 24 h
+            fuentes, enlaces, pasadas = calidad.resumen_24h(ahora=ahora, ruta=ruta)
+            self.assertEqual((pasadas, fuentes["Jobsora"]["leidas"], enlaces["cerradas"]), (2, 1200, 2))
+            texto = "\n".join(calidad.lineas_informe(fuentes, enlaces, pasadas))
+            for frag in ["Calidad de las fuentes", "Jobsora: leídas 1200 · nuevas 100 · publicadas 4 · filtradas 90 · retenidas por el tope 6", "descartamos el 90 % de sus nuevas",
+                         "50 comprobados · 2 marcados como cerrados · 5 sin respuesta", "Edutalent: leídas 60"]:
+                self.assertIn(frag, texto)
+            self.assertIn("sin datos", "\n".join(calidad.lineas_informe({}, {}, 0)))
+
+    def test_dos_anotaciones_en_el_mismo_minuto_no_se_pisan(self):
+        import datetime
+        with tempfile.TemporaryDirectory() as d:
+            ruta = Path(d) / "c.json"
+            ahora = datetime.datetime(2026, 11, 25, 8, 30, tzinfo=datetime.timezone.utc)
+            calidad.registrar("pesadas", {"X": {**dict.fromkeys(calidad.COLUMNAS, 0), "leidas": 7}}, ahora=ahora, ruta=ruta)
+            calidad.registrar("enlaces", enlaces={"comprobadas": 3, "cerradas": 1, "sin_respuesta": 0}, ahora=ahora, ruta=ruta)
+            fuentes, enlaces, pasadas = calidad.resumen_24h(ahora=ahora, ruta=ruta)
+            self.assertEqual((pasadas, fuentes["X"]["leidas"], enlaces["comprobadas"]), (1, 7, 3))
+
+    def test_se_borra_lo_de_mas_de_3_dias(self):
+        import datetime
+        with tempfile.TemporaryDirectory() as d:
+            ruta = Path(d) / "c.json"
+            ahora = datetime.datetime(2026, 11, 25, 8, 0, tzinfo=datetime.timezone.utc)
+            calidad.registrar("pesadas", {"X": dict.fromkeys(calidad.COLUMNAS, 1)}, ahora=ahora - datetime.timedelta(days=5), ruta=ruta)
+            calidad.registrar("pesadas", {"X": dict.fromkeys(calidad.COLUMNAS, 1)}, ahora=ahora, ruta=ruta)
+            self.assertEqual(len(json.loads(ruta.read_text())), 1)
+
+
+class Enlaces(unittest.TestCase):
+    def registro(self, **extra):
+        return {"t": "Oferta", "u": "https://colegio.es/o/1", "ts": 1_000_000, "m": [[2, 11], [9, 12]], "x": "🏫 Oferta", "estado": "", **extra}
+
+    def test_clasifica_las_respuestas(self):
+        self.assertEqual(E.estado_enlace(404, ""), "muerto")
+        self.assertEqual(E.estado_enlace(410, ""), "muerto")
+        self.assertEqual(E.estado_enlace(200, "<p>Oferta caducada</p>"), "muerto")
+        self.assertEqual(E.estado_enlace(200, "Esta oferta ya no está disponible"), "muerto")
+        self.assertEqual(E.estado_enlace(200, "Se busca maestro/a de EF"), "vivo")
+        for codigo in (0, 403, 429, 500, 503):
+            self.assertEqual(E.estado_enlace(codigo, ""), "incierto")  # un bloqueo o un fallo no cierra nada
+
+    def test_se_cierra_solo_tras_dos_comprobaciones_seguidas_y_se_editan_todos_los_mensajes(self):
+        log = {"a": self.registro()}
+        editados = []
+        ahora = 1_000_000 + 86400
+        args = dict(ahora=ahora, abrir_fn=lambda u: (404, ""), editar_fn=lambda g, m, t, b: editados.append((m, t, b)), pausa=0)
+        r1 = E.comprobar(log, "-100", **args)
+        self.assertEqual((r1["cerradas"], log["a"]["estado"], log["a"]["enl"]), (0, "", 1))
+        r2 = E.comprobar(log, "-100", **args)
+        self.assertEqual((r2["cerradas"], log["a"]["estado"]), (1, "cerrada"))
+        self.assertEqual([m for m, _, _ in editados], [11, 12])
+        self.assertTrue(all(t.startswith("🔒 CERRADA") and "🏫 Oferta" in t and b == "https://colegio.es/o/1" for _, t, b in editados))
+        E.comprobar(log, "-100", **args)  # ya cerrada: no se toca más
+        self.assertEqual(len(editados), 2)
+
+    def test_un_fallo_intermedio_o_una_pagina_viva_reinicia_la_cuenta(self):
+        log = {"a": self.registro()}
+        respuestas = iter([(404, ""), (200, "Maestro de EF"), (404, ""), (403, "")])
+        args = dict(ahora=1_000_000 + 86400, abrir_fn=lambda u: next(respuestas), editar_fn=lambda *a: None, pausa=0)
+        for _ in range(4):
+            E.comprobar(log, "-100", **args)
+        self.assertEqual((log["a"]["estado"], log["a"]["enl"]), ("", 1))  # 404, vivo (reinicia), 404, 403 (no cuenta)
+
+    def test_ignora_las_antiguas_las_ya_cerradas_y_las_sin_enlace(self):
+        log = {"vieja": self.registro(ts=1_000_000), "cerrada": self.registro(estado="cerrada"), "borrada": self.registro(estado="borrada"), "sin": self.registro(u="")}
+        llamadas = []
+        r = E.comprobar(log, "-100", ahora=1_000_000 + 40 * 86400, abrir_fn=lambda u: llamadas.append(u) or (404, ""), editar_fn=lambda *a: None, pausa=0)
+        self.assertEqual((r["comprobadas"], llamadas), (0, []))
 
 
 if __name__ == "__main__":
