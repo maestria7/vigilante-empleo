@@ -11,6 +11,7 @@ from pathlib import Path
 
 import calidad
 import fuentes as F
+import horario
 from clasificar import COMUNIDADES, comunidad_y_provincia, es_docente, hashtags, no_docente_agregador, tag_tema, temas, EXCLUIR, _n
 from provincias import JOBSORA_LUGAR, PROVINCIAS
 from taxonomia import areas as areas_de
@@ -392,6 +393,10 @@ def main():
     args = sys.argv[1:]
     grupo = next((a for a in args if a in ("ligeras", "pesadas", "todas")), "todas")
     volcado = int(args[args.index("--volcado") + 1]) if "--volcado" in args else 0
+
+    if not volcado and not horario.en_horario():
+        print(f"[{grupo}] fuera de horario (solo se manda de {horario.INICIO}:00 a {horario.FIN}:00, hora de Madrid): no se lee ni se manda nada")
+        return
 
     fuentes = construir_fuentes(grupo)
     ofertas, fallos, ids_completas, resultados = [], [], {}, {}

@@ -7,6 +7,7 @@ import calidad
 import clasificar as C
 import enlaces as E
 import fuentes as F
+import horario
 import vigilante as V
 
 
@@ -92,7 +93,7 @@ class FlujoCompleto(unittest.TestCase):
             salida = []
             with mock.patch.object(V, "VISTOS_PUB", vistos), mock.patch.object(V, "VISTOS_PRIV", priv), mock.patch.object(V, "LIMITES_F", d / "l.json"), \
                  mock.patch.object(V, "LOG_F", d / "p.json"), mock.patch.object(V, "SALUD_F", d / "s.json"), mock.patch.object(calidad, "F", d / "c.json"), mock.patch.object(V, "construir_fuentes", return_value=fuente), \
-                 mock.patch.object(V, "es_docente", return_value=True), mock.patch.object(V.time, "sleep"), mock.patch("builtins.print", side_effect=lambda *a, **k: salida.append(" ".join(map(str, a)))), \
+                 mock.patch.object(V, "es_docente", return_value=True), mock.patch.object(horario, "en_horario", return_value=True), mock.patch.object(V.time, "sleep"), mock.patch("builtins.print", side_effect=lambda *a, **k: salida.append(" ".join(map(str, a)))), \
                  mock.patch.dict(os.environ, {}, clear=True):
                 V.main()
             texto = "\n".join(salida)
@@ -193,6 +194,41 @@ class Enlaces(unittest.TestCase):
         llamadas = []
         r = E.comprobar(log, "-100", ahora=1_000_000 + 40 * 86400, abrir_fn=lambda u: llamadas.append(u) or (404, ""), editar_fn=lambda *a: None, pausa=0)
         self.assertEqual((r["comprobadas"], llamadas), (0, []))
+
+
+class Horario(unittest.TestCase):
+    def hora(self, y, m, d, h, mi=0, utc=False):
+        import datetime
+        tz = datetime.timezone.utc if utc else horario.MADRID
+        return datetime.datetime(y, m, d, h, mi, tzinfo=tz)
+
+    def test_solo_de_9_a_21_en_hora_de_madrid(self):
+        for h in (9, 12, 20):
+            self.assertTrue(horario.en_horario(self.hora(2026, 11, 25, h, 30)), h)
+        self.assertTrue(horario.en_horario(self.hora(2026, 11, 25, 20, 59)))
+        for h in (0, 3, 6, 8, 21, 22, 23):
+            self.assertFalse(horario.en_horario(self.hora(2026, 11, 25, h, 10)), h)
+        self.assertFalse(horario.en_horario(self.hora(2026, 11, 25, 8, 59)))
+
+    def test_la_hora_es_la_de_madrid_en_invierno_y_en_verano(self):
+        # invierno: 08:10 UTC = 09:10 Madrid (dentro); 20:10 UTC = 21:10 Madrid (fuera)
+        self.assertTrue(horario.en_horario(self.hora(2026, 11, 25, 8, 10, utc=True)))
+        self.assertFalse(horario.en_horario(self.hora(2026, 11, 25, 20, 10, utc=True)))
+        # verano: 07:10 UTC = 09:10 Madrid (dentro); 08:10 UTC = 10:10; 19:10 UTC = 21:10 Madrid (fuera); 06:10 UTC = 08:10 Madrid (fuera)
+        self.assertTrue(horario.en_horario(self.hora(2026, 7, 15, 7, 10, utc=True)))
+        self.assertFalse(horario.en_horario(self.hora(2026, 7, 15, 19, 10, utc=True)))
+        self.assertFalse(horario.en_horario(self.hora(2026, 7, 15, 6, 10, utc=True)))
+
+    def test_de_noche_el_vigilante_no_lee_ni_manda_nada(self):
+        with mock.patch.object(horario, "en_horario", return_value=False), mock.patch.object(V, "construir_fuentes", side_effect=AssertionError("no debe leer fuentes")), \
+             mock.patch.object(V, "telegram", side_effect=AssertionError("no debe mandar nada")), mock.patch("sys.argv", ["vigilante.py", "pesadas"]):
+            V.main()  # no lanza excepciones: sale sin hacer nada
+
+    def test_el_volcado_manual_se_salta_el_horario(self):
+        with mock.patch.object(horario, "en_horario", return_value=False), mock.patch.object(V, "construir_fuentes", return_value=[]) as c, mock.patch("sys.argv", ["vigilante.py", "ligeras", "--volcado", "5"]), \
+             mock.patch.object(V, "VISTOS_PUB", Path(tempfile.mkdtemp()) / "vp.json"), mock.patch.object(V, "VISTOS_PRIV", Path(tempfile.mkdtemp()) / "v.json"), mock.patch.dict(os.environ, {}, clear=True):
+            V.main()
+        c.assert_called_once()
 
 
 if __name__ == "__main__":

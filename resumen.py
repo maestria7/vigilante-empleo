@@ -7,6 +7,7 @@ import json, os, sys, time, urllib.parse, urllib.request
 from collections import Counter
 from pathlib import Path
 
+import horario
 from clasificar import TEMAS
 from provincias import COMUNIDADES
 
@@ -14,6 +15,10 @@ AQUI = Path(__file__).parent
 TOK, GRUPO = os.environ.get("TELEGRAM_TOKEN"), os.environ.get("TELEGRAM_GRUPO_ID")
 log = json.loads((AQUI / "publicadas.json").read_text()) if (AQUI / "publicadas.json").exists() else {}
 hilos = json.loads((AQUI / "topics.json").read_text())
+
+if not horario.en_horario():
+    print("Fuera de horario (solo se manda de 9:00 a 21:00, hora de Madrid): no envío el resumen")
+    sys.exit(0)
 
 ahora = time.time()
 nuevas = [r for r in log.values() if ahora - r["ts"] <= 86400]
