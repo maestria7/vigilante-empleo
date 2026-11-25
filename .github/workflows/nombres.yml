@@ -1,0 +1,18 @@
+name: nombres
+on:
+  workflow_dispatch:
+jobs:
+  b:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          python3 - <<'PY'
+          import os, urllib.request, urllib.parse
+          A = "https://api.telegram.org/bot" + os.environ["TOK"]
+          desc = "🔔 MI ALERTA DOCENTE · Radar Docente by Maestría\n\nTu próxima plaza puede estar publicada hoy.\n\nElige tus etapas, áreas y comunidades y te aviso por privado, al momento, solo de las ofertas que te encajan. Gratis.\n\nPulsa «Iniciar» y empieza. 👇"
+          corta = "Avisos personales de ofertas docentes de toda España, solo de tu especialidad. Gratis. 🔔"
+          for m, k, v in (("setMyDescription", "description", desc), ("setMyShortDescription", "short_description", corta)):
+              print(urllib.request.urlopen(A + "/" + m, urllib.parse.urlencode({k: v}).encode()).read().decode())
+          PY
+        env:
+          TOK: ${{ secrets.TELEGRAM_TOKEN }}
