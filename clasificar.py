@@ -94,7 +94,9 @@ EXCLUIR_AGREGADOR = (r"mayores|geriatr|tercera edad|residencia de ancian|ayuda a
                      r"maestr[oa@]s? (?:de obra|de cocina|de taller|de oficio|encofrador|chocolater|panader|pasteler|cervecer|fontaner|albanil|carpinter|pintor|soldador|electricist|instalador|joyer|zapater)|"
                      r"(?:encofrador|chocolater|fontaner|panader|pasteler|albanil|carpinter|soldador)\w*\s+maestr|datos maestros|ingenier|arquitect|profesor(?:a)?(?:/a)? asociad|catedr|"
                      r"educador(?:a)?(?: o educadora)? social|exclusion social|universitari|yoga|coach|grooming|stylist|\bremot[eo]s?\b|actividades de verano|canin|ocio y tiempo libre|"
-                     r"charcuter|de negocios|business|community builder|para empresas")
+                     r"charcuter|de negocios|business|community builder|para empresas|"
+                     # clases particulares de oficios, deportes y artes (Cronoshare…) y academias de baile, teatro o cursos técnicos: no son docencia de centro
+                     r"cronoshare|danza|bailes?\b|teatro|tenis|natacion|padel|pilates|zumba|fontaner|frio industrial|\brite\b|refuerzo|planeta formacion|thepower|expanish")
 SENALES_PARTICULARES = r"clases particulares|clases de refuerzo|refuerzo escolar|apoyo escolar|a domicilio|tutor(?:a)?(?:/a)? online"
 
 

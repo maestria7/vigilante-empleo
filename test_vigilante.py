@@ -66,6 +66,14 @@ class Clasificacion(unittest.TestCase):
         self.assertEqual(C.temas("Profesor de Matemáticas, Física y Computer Science (Inglés C1)"), ["Secundaria"])
         self.assertIn("Idiomas", C.temas("Profesor de Inglés"))
 
+    def test_clases_particulares_de_cronoshare_y_academias_no_son_docencia_de_centro(self):
+        for titulo, empresa in [("Profesor/a de tenis en Almería — Cronoshare.com", ""), ("Profesor/a de natación en Barcelona", "Cronoshare.com"),
+                                ("Profesor/a de Teatro – Coslada", "Antares Danza SL"), ("Profesor/a de Bailes Latinos", "Pebetero S.L."),
+                                ("PROFESOR REFUERZO DE INGLÉS VALLECAS", "CULTURAL ACTEX")]:
+            self.assertTrue(C.no_docente_agregador(titulo, empresa), titulo)
+        for titulo in ["Maestro/a de Educación Física", "Profesor/a de matemáticas ESO/Bachillerato. SUSTITUCIÓN", "Profesor/a de Música", "Bolsa de sustituciones Maestro/a"]:
+            self.assertFalse(C.no_docente_agregador(titulo), titulo)
+
     def test_provincias_cortas_y_leon_xiii(self):
         self.assertEqual(C.comunidad_y_provincia("Maestros de Educación Infantil Lugo"), ("GAL", "Lugo"))
         self.assertEqual(C.comunidad_y_provincia("Profesor en Jaén"), ("AND", "Jaén"))
