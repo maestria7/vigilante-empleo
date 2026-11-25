@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Vigila ofertas de empleo docente en toda España.
 
-- Aviso privado (Telegram, tu chat): solo primaria y educación física en tus comunidades.
+- Aviso privado personal: QUITADO el 25-nov-2026 (el dueño recibe lo mismo, con botones, por el bot con perfil).
 - Grupo público con temas: todas las ofertas, un tema por especialidad y etiquetas por comunidad.
 
 Uso: python3 vigilante.py [ligeras|pesadas|todas] [--volcado N]
@@ -430,18 +430,9 @@ def main():
     hilos = json.loads(TEMAS_F.read_text()) if TEMAS_F.exists() else {}
     comunidades_priv = set(CONFIG.get("comunidades_privado", ["AND", "MUR", "CLM", "MAD"]))
 
-    # ---- privado
-    v_priv = cargar(VISTOS_PRIV)
-    primera_priv = v_priv is None
-    v_priv = v_priv or set()
-    nuevas = [o for o in ofertas if o["id"] not in v_priv]
-    para_mi = limitar_semanal([o for o in nuevas if o.get("solo_privado") or (coincide_privado(o) and (o.get("ccaa") in comunidades_priv or not o.get("ccaa"))
-                                                                         and (not o.get("agregador") or es_valida_agregador(o)))], "privado")[:CONFIG.get("max_publicar_por_pasada", 10)]
-    if not primera_priv:
-        for o in para_mi:
-            telegram(chat_priv, f"🔔 {o['titulo']}\n{o['origen']}\n{o['url']}")
-    v_priv |= {o["id"] for o in ofertas}
-    VISTOS_PRIV.write_text(json.dumps(sorted(v_priv)))
+    # ---- privado: las alertas personales (Primaria/EF en AND, MUR, CLM, MAD, solo de texto) se quitaron el 25-nov-2026: Julián recibe lo mismo, con botones,
+    # por el bot con perfil (es un suscriptor más). Las fuentes «solo_privado» (alertas de Google) ya salen también en el grupo (`grupo: True`).
+    para_mi, primera_priv = [], False
 
     # ---- público (grupo con temas)
     v_pub = cargar(VISTOS_PUB)
