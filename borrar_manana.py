@@ -4,7 +4,7 @@ import json, os, time, urllib.error, urllib.parse, urllib.request
 from pathlib import Path
 
 TOK, GRUPO = os.environ["TELEGRAM_TOKEN"], os.environ["TELEGRAM_GRUPO_ID"]
-DESDE = 1795669200  # 2026-11-25 05:00:00 UTC
+DESDE = 1795582800  # 2026-11-25 05:00:00 UTC
 F = Path("publicadas.json")
 
 
